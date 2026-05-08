@@ -1,0 +1,40 @@
+// ═══════════════════════════════════════════════════════════════════
+//  SafeTrack — Tang Nano 9K Physical Constraints File (.cst)
+//  For Gowin EDA / GOWIN FPGA Designer
+// ═══════════════════════════════════════════════════════════════════
+
+IO_LOC  "clk_27mhz"  52;
+IO_PORT "clk_27mhz"  IO_TYPE=LVCMOS33;
+
+// ─── Sensor Inputs ──────────────────────────────────────────────
+IO_LOC  "flame_in"    25;
+IO_PORT "flame_in"    IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC  "smoke_in"    26;
+IO_PORT "smoke_in"    IO_TYPE=LVCMOS33 PULL_MODE=DOWN;
+
+IO_LOC  "tilt_in"     28;
+IO_PORT "tilt_in"     IO_TYPE=LVCMOS33 PULL_MODE=DOWN;
+
+IO_LOC  "seat_in"     29;
+IO_PORT "seat_in"     IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC  "dht_io"      30;
+IO_PORT "dht_io"      IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+// ─── UART TX to ESP32 ──────────────────────────────────────────
+IO_LOC  "uart_tx"     17;
+IO_PORT "uart_tx"     IO_TYPE=LVCMOS33 DRIVE=8;
+
+// ─── On-board Button & LEDs ────────────────────────────────────
+IO_LOC  "btn_user"    4;
+IO_PORT "btn_user"    IO_TYPE=LVCMOS18;
+
+IO_LOC  "led_r"       10;
+IO_PORT "led_r"       IO_TYPE=LVCMOS18 DRIVE=8;
+
+IO_LOC  "led_g"       11;
+IO_PORT "led_g"       IO_TYPE=LVCMOS18 DRIVE=8;
+
+IO_LOC  "led_b"       13;
+IO_PORT "led_b"       IO_TYPE=LVCMOS18 DRIVE=8;
