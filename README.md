@@ -17,7 +17,7 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
 ## Modules
 
 ### 1. IoT Hardware (`/iot`)
-- **FPGA (Tang Nano 9K):** Reads flame, smoke, tilt, temperature, and seat sensors. Sends processed binary packets to the ESP32 over UART at 9600 baud.
+- **FPGA (Tang Nano 9K):** Reads flame, smoke, tilt, and seat sensors. Sends processed binary packets to the ESP32 over UART at 9600 baud.
 - **ESP32:** Receives FPGA packets, reads GPS coordinates from a NEO-6M module, and pushes all telemetry to Firebase Firestore via the REST API every 10 seconds.
 
 ### 2. Mobile App (`/mobile-app`)
@@ -35,7 +35,7 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
 - Emergency alert dispatch — triggers Twilio voice calls, Slack notifications, and Telegram alerts via Cloud Functions.
 
 ### 4. Cloud Functions (`/admin-dashboard/functions`)
-- `sendEmergencyAlert` — HTTP endpoint that dispatches emergency notifications to Twilio, Slack, and Telegram.
+- `sendEmergencyAlert` — HTTP endpoint that dispatches emergency notifications to Slack, and Telegram.
 - `askGemini` — Callable function for Gemini AI integration in the mobile app.
 
 ## Tech Stack
@@ -84,8 +84,7 @@ firebase deploy --only functions
 |------------|----------------------------------|-----------|
 | Flame      | Fire detection (IR)              | Digital   |
 | MQ-2       | Smoke / gas detection            | Digital   |
-| SW-420     | Vibration / tilt detection       | Digital   |
-| DHT11      | Temperature reading              | 1-Wire    |
+| MPU-6050     | Vibration / tilt detection       | Digital   |
 | Limit SW   | Seat occupancy detection         | Digital   |
 | NEO-6M     | GPS location                     | UART      |
 
