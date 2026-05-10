@@ -84,6 +84,23 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
 - Driver terminal with SOS alerts and trip management.
 - Emergency alert dispatch — triggers Twilio voice calls, Slack notifications, and Telegram alerts via Cloud Functions.
 
+### Live Tracking System
+
+The Flutter application implements a real-time live tracking interface using the `google_maps_flutter` package and Firebase telemetry streams. The `live_tracking_screen.dart` module subscribes to Firestore live telemetry updates through `ApiService.liveDataStream()` and dynamically updates bus marker positions, safety status, emergency indicators, and GPS coordinates in real time.
+
+Implemented features:
+
+* Real-time GPS tracking
+* Google Maps integration
+* Dynamic bus marker updates
+* Live speed and temperature monitoring
+* Emergency detection visualization
+* Camera auto-follow system
+* Re-center map controls
+* Last updated telemetry timestamps
+* Safety status classification (SAFE/WARNING/DANGER)
+
+
 #### Key Files
 | Path | Purpose |
 |------|---------|
