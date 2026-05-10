@@ -15,40 +15,41 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          // Fetch role from Firestore users collection
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
 
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              name: data.name || firebaseUser.email?.split('@')[0] || 'User',
-              role: data.role || 'driver', // 'admin' or 'driver'
-            });
-          } else {
-            // No Firestore doc — treat as driver by default
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              name: firebaseUser.email?.split('@')[0] || 'User',
-              role: 'driver',
-            });
-          }
-        } catch (e) {
-          // Firestore read failed — still set basic user
+      if (!firebaseUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            name: firebaseUser.email?.split('@')[0] || 'User',
-            role: 'driver',
+            name: data.name || 'User',
+            role: data.role || null,
+          });
+        } else {
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.email || 'User',
+            role: null,
           });
         }
-      } else {
+
+      } catch (error) {
+        console.error('Auth Error:', error);
+
         setUser(null);
       }
+
       setLoading(false);
     });
 
@@ -56,13 +57,13 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    const credential = await signInWithEmailAndPassword(auth, email, password);
+    const credential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
 
-    // Fetch role immediately after login
-    const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
-    const role = userDoc.exists() ? userDoc.data().role : 'driver';
-
-    return { user: credential.user, role };
+    return { user: credential.user };
   };
 
   const logout = async () => {

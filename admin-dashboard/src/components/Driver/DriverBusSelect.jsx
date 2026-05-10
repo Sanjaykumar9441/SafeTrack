@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { FaBus } from 'react-icons/fa';
 import { FiSearch, FiLogOut } from 'react-icons/fi';
 import { db } from '../../firebase';
@@ -8,6 +9,7 @@ import toast from 'react-hot-toast';
 
 const DriverBusSelect = () => {
     const navigate = useNavigate();
+    const { logout, user: driver } = useAuth();
     const [buses, setBuses] = useState([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
@@ -41,8 +43,8 @@ const DriverBusSelect = () => {
         navigate('/driver/terminal');
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('driver_bus');
+    const handleLogout = async () => {
+        await logout();
         navigate('/login');
     };
 

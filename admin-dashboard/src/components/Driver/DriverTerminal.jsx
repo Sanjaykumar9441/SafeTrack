@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 import { FaBus } from 'react-icons/fa';
 import {
     FiAlertTriangle, FiUsers, FiMapPin, FiNavigation,
@@ -15,6 +16,7 @@ import toast from 'react-hot-toast';
 
 const DriverTerminal = () => {
     const navigate = useNavigate();
+    const { logout, user: driver } = useAuth();
 
     // Session
     const bus = JSON.parse(localStorage.getItem('driver_bus') || 'null');
@@ -133,7 +135,7 @@ const DriverTerminal = () => {
                 longitude: liveData?.longitude || 0,
                 isResolved: false,
                 triggeredBy: 'DRIVER',
-                driverId: driver.id,
+                driverId: driver.uid,
                 driverName: driver.name,
                 timestamp: serverTimestamp(),
             });
@@ -227,8 +229,8 @@ Next Stop: ${nextStop?.name || 'N/A'}
 
     // ── Logout ────────────────────────────────────────────────
 
-    const handleLogout = () => {
-        localStorage.removeItem('driver_bus');
+    const handleLogout = async () => {
+        await logout();
         navigate('/login');
     };
 

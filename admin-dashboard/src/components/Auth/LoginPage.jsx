@@ -39,39 +39,45 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validate()) return;
 
     setLoading(true);
+
     try {
-      const { role } = await login(email, password);
+      await login(email, password);
 
-      if (tab === 'admin') {
-        // Admin tab — only allow admin role
-        if (role !== 'admin') {
-          toast.error('This account is not an admin. Use Driver Login tab.');
-          return;
-        }
-        toast.success('Welcome to SafeTrack Admin Panel!');
-        navigate('/dashboard');
+      toast.success('Login successful!');
 
-      } else {
-        // Driver tab — only allow driver role
-        if (role !== 'driver') {
-          toast.error('This account is not a driver. Use Admin Login tab.');
-          return;
+      // Wait a moment for AuthContext to update
+      setTimeout(() => {
+        if (tab === 'admin') {
+          navigate('/dashboard');
+        } else {
+          navigate('/driver/bus-select');
         }
-        toast.success('Welcome, Driver!');
-        navigate('/driver/bus-select');
-      }
+      }, 500);
 
     } catch (error) {
+
       const code = error.code;
+
       let msg = 'Invalid email or password';
-      if (code === 'auth/user-not-found') msg = 'No account found with this email';
-      if (code === 'auth/wrong-password') msg = 'Incorrect password';
-      if (code === 'auth/invalid-credential') msg = 'Invalid email or password';
-      if (code === 'auth/too-many-requests') msg = 'Too many attempts. Try later.';
+
+      if (code === 'auth/user-not-found')
+        msg = 'No account found with this email';
+
+      if (code === 'auth/wrong-password')
+        msg = 'Incorrect password';
+
+      if (code === 'auth/invalid-credential')
+        msg = 'Invalid email or password';
+
+      if (code === 'auth/too-many-requests')
+        msg = 'Too many attempts. Try later.';
+
       toast.error(msg);
+
     } finally {
       setLoading(false);
     }
