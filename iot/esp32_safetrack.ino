@@ -6,22 +6,23 @@
  * all telemetry to Firebase Firestore via the REST API.
  *
  * Data flow:
- *   Tang Nano 9K (FPGA) --UART 9600--> ESP32 --WiFi/HTTPS--> Firebase
+ * Tang Nano 9K (FPGA) --UART 9600--> ESP32 --WiFi/HTTPS--> Firebase
  *
  * FPGA binary packet (8 bytes):
- *   Byte 0: '$'  (0x24, start marker)
- *   Byte 1: flame    (0=SAFE, 1=UNSAFE)
- *   Byte 2: smoke    (0=SAFE, 1=UNSAFE)
- *   Byte 3: tilt     (0=SAFE, 1=UNSAFE)
- *   Byte 4: seat     (0=EMPTY, 1=OCCUPIED)
- *   Byte 5: temperature (0-99 deg C)
- *   Byte 6: emergency (0=no, 1=yes)
- *   Byte 7: '\n' (0x0A, end marker)
+ * Byte 0: '$'  (0x24, start marker)
+ * Byte 1: flame       (0=SAFE, 1=UNSAFE)
+ * Byte 2: smoke       (0=SAFE, 1=UNSAFE)
+ * Byte 3: tilt        (0=SAFE, 1=UNSAFE)
+ * Byte 4: seats       (0 to 4 passengers)
+ * Byte 5: temperature (0-99 deg C)
+ * Byte 6: emergency   (0=no, 1=yes)
+ * Byte 7: '\n' (0x0A, end marker)
  *
  * Wiring:
- *   Tang Nano Pin 17 (TX) -> ESP32 GPIO16 (RX2)
- *   NEO-6M GPS TX         -> ESP32 GPIO4
- *   NEO-6M GPS RX         -> ESP32 GPIO2
+ * Tang Nano Pin 63 (TX) -> ESP32 GPIO16 (RX2)
+ * NEO-6M GPS TX         -> ESP32 GPIO4
+ * NEO-6M GPS RX         -> ESP32 GPIO2
+ * Tang Nano GND         -> ESP32 GND (CRITICAL)
  */
 
 #include <ArduinoJson.h>
@@ -65,7 +66,7 @@ struct FpgaData {
   bool flame = false;
   bool smoke = false;
   bool tilt = false;
-  bool seatOccupied = false;
+  uint8_t passengerCount = 0; // Updated to handle 0-4
   uint8_t temperature = 25;
   bool emergency = false;
   bool valid = false;
@@ -126,7 +127,7 @@ void readFpgaPacket() {
           fpgaData.flame = (pktBuf[1] == 1);
           fpgaData.smoke = (pktBuf[2] == 1);
           fpgaData.tilt = (pktBuf[3] == 1);
-          fpgaData.seatOccupied = (pktBuf[4] == 1);
+          fpgaData.passengerCount = pktBuf[4]; // Extract integer 0-4
           fpgaData.temperature = pktBuf[5];
           fpgaData.emergency = (pktBuf[6] == 1);
           fpgaData.valid = true;
@@ -146,9 +147,9 @@ void printStatus() {
   if (fpgaData.valid) {
     unsigned long age = (millis() - fpgaData.lastReceived) / 1000;
     Serial.printf(
-        "FPGA (age %lus): flame=%d smoke=%d tilt=%d seat=%d temp=%d emg=%d\n",
+        "FPGA (age %lus): flame=%d smoke=%d tilt=%d seats=%d temp=%d emg=%d\n",
         age, fpgaData.flame, fpgaData.smoke, fpgaData.tilt,
-        fpgaData.seatOccupied, fpgaData.temperature, fpgaData.emergency);
+        fpgaData.passengerCount, fpgaData.temperature, fpgaData.emergency);
   } else {
     Serial.println("No FPGA data yet");
   }
@@ -179,14 +180,14 @@ void sendToFirestore() {
   String smokeStr = fpgaData.smoke ? "UNSAFE" : "SAFE";
   String flameStr = fpgaData.flame ? "UNSAFE" : "SAFE";
   String tiltStr = fpgaData.tilt ? "UNSAFE" : "SAFE";
-  String seatStr = fpgaData.seatOccupied ? "OCCUPIED" : "EMPTY";
   bool isEmergency = fpgaData.emergency;
+  uint8_t paxCount = fpgaData.passengerCount;
 
   if (!fpgaData.valid) {
     smokeStr = "SAFE";
     flameStr = "SAFE";
     tiltStr = "SAFE";
-    seatStr = "EMPTY";
+    paxCount = 0;
     isEmergency = false;
   }
 
@@ -200,7 +201,8 @@ void sendToFirestore() {
   fields["smoke"]["stringValue"] = smokeStr;
   fields["flame"]["stringValue"] = flameStr;
   fields["tiltAngle"]["stringValue"] = tiltStr;
-  fields["seatStatus"]["stringValue"] = seatStr;
+  fields["passengerCount"]["integerValue"] =
+      paxCount; // Pushes multi-seat integer
   fields["latitude"]["doubleValue"] = lastLat;
   fields["longitude"]["doubleValue"] = lastLng;
   fields["speed"]["doubleValue"] = (double)lastSpeed;
@@ -212,8 +214,8 @@ void sendToFirestore() {
 
   int httpCode = http.POST(payload);
   if (httpCode == 200 || httpCode == 201) {
-    Serial.printf("Firebase OK — %.5f, %.5f | %d C\n", lastLat, lastLng,
-                  fpgaData.temperature);
+    Serial.printf("Firebase OK — %.5f, %.5f | %d C | Pax: %d\n", lastLat,
+                  lastLng, fpgaData.temperature, paxCount);
   } else {
     Serial.printf("Firebase error: %d\n", httpCode);
     Serial.println(http.getString());
