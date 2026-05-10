@@ -219,7 +219,13 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
           loading = false;
 
           // Default position
-          _busPosition = const LatLng(16.98, 82.23);
+          final lastLat = _toDouble(data['currentLatitude']);
+
+          final lastLng = _toDouble(data['currentLongitude']);
+
+          _busPosition = (lastLat != 0 && lastLng != 0)
+              ? LatLng(lastLat, lastLng)
+              : const LatLng(16.98, 82.23);
 
           // Start stream immediately
           _liveStream = (deviceId != null && deviceId.isNotEmpty)
@@ -618,6 +624,7 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                   ),
                                 ],
                               ),
+                              _buildAiPredictionBanner(),
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -652,7 +659,6 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                 ],
                               ),
                               const SizedBox(height: 16),
-                              _buildAiPredictionBanner(),
                               if (busDetail!['source'] != null) ...[
                                 _buildSectionTitle('Route Information'),
                                 Container(

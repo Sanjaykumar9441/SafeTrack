@@ -16,7 +16,9 @@ import DriverBusSelect from './components/Driver/DriverBusSelect';
 import DriverTerminal from './components/Driver/DriverTerminal';
 
 const ProtectedRoute = ({ children }) => {
-  const { admin, loading } = useAuth();
+
+  const { user, loading } =
+    useAuth();
 
   if (loading) {
     return (
@@ -26,21 +28,47 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  if (!admin) {
-    return <Navigate to="/login" replace />;
+  if (!user ||
+    user.role !== 'admin') {
+
+    return (
+      <Navigate
+        to={
+          user?.role === 'driver'
+            ? '/driver/bus-select'
+            : '/login'
+        }
+        replace
+      />
+    );
   }
 
   return children;
 };
 
 function AppRoutes() {
-  const { admin } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={admin ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+        element={
+          user
+            ? (
+              user.role === 'admin'
+                ? <Navigate to="/dashboard" replace />
+                : <Navigate to="/driver/bus-select" replace />
+            )
+            : <LoginPage />
+        }
       />
 
       <Route
@@ -58,17 +86,30 @@ function AppRoutes() {
         <Route path="routes/create" element={<CreateRoute />} />
         <Route path="alerts" element={<AlertsPanel />} />
         <Route path="live-data" element={<LiveDataPanel />} />
-        <Route path="/driver/bus-select" element={<DriverRoute><DriverBusSelect /></DriverRoute>} />
-        <Route path="/driver/terminal" element={<DriverRoute><DriverTerminal /></DriverRoute>} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/driver/bus-select" element={<DriverRoute><DriverBusSelect /></DriverRoute>} />
+      <Route path="/driver/terminal" element={<DriverRoute><DriverTerminal /></DriverRoute>} />
+
+      <Route
+        path="*"
+        element={
+          user
+            ? (
+              user.role === 'admin'
+                ? <Navigate to="/dashboard" replace />
+                : <Navigate to="/driver/bus-select" replace />
+            )
+            : <Navigate to="/login" replace />
+        }
+      />
     </Routes>
   );
 }
 
 
 const DriverRoute = ({ children }) => {
+
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -79,8 +120,14 @@ const DriverRoute = ({ children }) => {
     );
   }
 
-  if (!user || user.role !== 'driver') {
+  // Not logged in
+  if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Logged in but not driver
+  if (user.role !== 'driver') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/ai_service.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 class AiSafetyChatScreen extends StatefulWidget {
   final Map<String, dynamic>? busContext;
@@ -17,6 +18,9 @@ class _AiSafetyChatScreenState extends State<AiSafetyChatScreen> {
   final List<_ChatMessage> _messages = [];
   final List<Map<String, String>> _history = [];
   bool _loading = false;
+  final SpeechToText _speech = SpeechToText();
+
+  bool _isListening = false;
 
   // Quick question chips
   final List<String> _quickQuestions = [
@@ -41,6 +45,7 @@ class _AiSafetyChatScreenState extends State<AiSafetyChatScreen> {
 
   @override
   void dispose() {
+    _speech.stop();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -88,6 +93,47 @@ class _AiSafetyChatScreenState extends State<AiSafetyChatScreen> {
     }
   }
 
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      await _speech.stop();
+
+      setState(() {
+        _isListening = false;
+      });
+
+      return;
+    }
+
+    bool available = await _speech.initialize();
+
+    if (!available) return;
+
+    setState(() {
+      _isListening = true;
+    });
+
+    await _speech.listen(
+      onResult: (result) {
+        setState(() {
+          _controller.text = result.recognizedWords;
+        });
+
+        // AUTO SEND
+        if (result.finalResult && result.recognizedWords.trim().isNotEmpty) {
+          _speech.stop();
+
+          setState(() {
+            _isListening = false;
+          });
+
+          _sendMessage(
+            result.recognizedWords,
+          );
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -111,7 +157,7 @@ class _AiSafetyChatScreenState extends State<AiSafetyChatScreen> {
                 Text('SafeTrack AI',
                     style:
                         TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                Text('Powered by Gemini',
+                Text('Powered by AI Assistant',
                     style:
                         TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
               ],
@@ -150,7 +196,6 @@ class _AiSafetyChatScreenState extends State<AiSafetyChatScreen> {
               },
             ),
           ),
-
           if (_messages.length <= 1)
             SizedBox(
               height: 44,
@@ -172,9 +217,7 @@ class _AiSafetyChatScreenState extends State<AiSafetyChatScreen> {
                 ),
               ),
             ),
-
           const SizedBox(height: 8),
-
           Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
             decoration: BoxDecoration(
@@ -209,23 +252,46 @@ class _AiSafetyChatScreenState extends State<AiSafetyChatScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () => _sendMessage(_controller.text),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color:
-                          _loading ? Colors.grey[300] : AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(22),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _toggleListening,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: _isListening ? Colors.red : Colors.orange,
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Icon(
+                          _isListening
+                              ? Icons.graphic_eq_rounded
+                              : Icons.mic_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.send_rounded,
-                      color: _loading ? Colors.grey : Colors.white,
-                      size: 20,
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => _sendMessage(_controller.text),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: _loading
+                              ? Colors.grey[300]
+                              : AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Icon(
+                          Icons.send_rounded,
+                          color: _loading ? Colors.grey : Colors.white,
+                          size: 20,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  ],
+                )
               ],
             ),
           ),

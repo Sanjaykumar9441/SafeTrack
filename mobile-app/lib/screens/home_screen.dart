@@ -25,8 +25,16 @@ class _HomeScreenState extends State<HomeScreen> {
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
   final _serviceNumberController = TextEditingController();
+  late final Stream<List<Bus>> _busesStream;
 
   @override
+  @override
+  void initState() {
+    super.initState();
+
+    _busesStream = ApiService.busesStream();
+  }
+
   void dispose() {
     _vehicleNumberController.dispose();
     _fromController.dispose();
@@ -580,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Consumer<FavoritesProvider>(
                         builder: (context, favorites, child) {
                           return StreamBuilder<List<Bus>>(
-                            stream: ApiService.busesStream(),
+                            stream: _busesStream,
                             builder: (context, snapshot) {
                               // Show empty hint even before data loads
                               final allBuses = snapshot.data ?? [];

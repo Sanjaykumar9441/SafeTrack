@@ -106,7 +106,7 @@ class ContactScreen extends StatelessWidget {
                 _buildActionButton(
                   Icons.phone_rounded,
                   'Call Helpline',
-                  '',
+                  null,
                   AppTheme.safeColor,
                   () => _launchPhone('+917095009441'),
                 ),
@@ -423,7 +423,7 @@ class ContactScreen extends StatelessWidget {
   Widget _buildActionButton(
     IconData icon,
     String title,
-    String subtitle,
+    String? subtitle,
     Color color,
     VoidCallback onTap,
   ) {
@@ -465,14 +465,16 @@ class ContactScreen extends StatelessWidget {
                         fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 11,
+                    if (subtitle != null && subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -595,7 +597,7 @@ class ContactScreen extends StatelessWidget {
               ),
               SizedBox(width: 6),
               Text(
-                'project Space 2026',
+                'Project Space 2026',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,

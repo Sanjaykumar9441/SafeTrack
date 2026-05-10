@@ -11,7 +11,6 @@ import {
     updateDoc, serverTimestamp, query, where,
     orderBy, limit, getDocs,
 } from 'firebase/firestore';
-import { askAI } from '../AI/GeminiService';
 import toast from 'react-hot-toast';
 
 const DriverTerminal = () => {
@@ -34,11 +33,6 @@ const DriverTerminal = () => {
     const [alerts, setAlerts] = useState([]);
 
     const sosRef = useRef(null);
-
-    // Redirect if no session
-    useEffect(() => {
-        if (!driver || !bus) navigate('/driver/login');
-    }, []);
 
     // Clock
     useEffect(() => {
@@ -222,14 +216,9 @@ Stops: ${(routeData?.intermediateStops || []).map(s => s.name).join(' → ')}
 Current Speed: ${liveData?.speed || 0} km/h
 Next Stop: ${nextStop?.name || 'N/A'}
 `;
-            const reply = await askAI(
-                `The bus is running slower than expected (${liveData?.speed || 0} km/h). 
-         Suggest a brief rerouting tip or advice for the driver to reach 
-         ${routeData?.destination || 'destination'} on time. 
-         Give 1-2 short practical sentences only.`,
-                context
+            setRerouteMsg(
+                'Traffic ahead may be slow. Continue on the current route and maintain safe speed.'
             );
-            setRerouteMsg(reply);
         } catch {
             setRerouteMsg('AI rerouting unavailable. Follow the standard route.');
         } finally {

@@ -14,11 +14,6 @@ const DriverBusSelect = () => {
 
     const driver = JSON.parse(localStorage.getItem('driver_session') || 'null');
 
-    // Redirect if no session
-    useEffect(() => {
-        if (!driver) navigate('/driver/login');
-    }, []);
-
     // Load active buses
     useEffect(() => {
         const unsub = onSnapshot(collection(db, 'buses'), (snap) => {
@@ -116,8 +111,8 @@ const DriverBusSelect = () => {
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${bus.status === 'RUNNING'
-                                        ? 'bg-green-900 text-green-400'
-                                        : 'bg-gray-700 text-gray-400'
+                                    ? 'bg-green-900 text-green-400'
+                                    : 'bg-gray-700 text-gray-400'
                                     }`}>
                                     {bus.status || 'STOPPED'}
                                 </span>

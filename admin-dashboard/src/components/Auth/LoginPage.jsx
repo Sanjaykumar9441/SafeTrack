@@ -108,8 +108,8 @@ const LoginPage = () => {
             <button
               onClick={() => switchTab('admin')}
               className={`flex-1 py-4 text-sm font-semibold transition-all ${tab === 'admin'
-                  ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                  : 'text-gray-400 hover:text-gray-600'
+                ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
+                : 'text-gray-400 hover:text-gray-600'
                 }`}
             >
               🛡 Admin Login
@@ -117,8 +117,8 @@ const LoginPage = () => {
             <button
               onClick={() => switchTab('driver')}
               className={`flex-1 py-4 text-sm font-semibold transition-all ${tab === 'driver'
-                  ? 'text-yellow-600 border-b-2 border-yellow-500 bg-yellow-50'
-                  : 'text-gray-400 hover:text-gray-600'
+                ? 'text-yellow-600 border-b-2 border-yellow-500 bg-yellow-50'
+                : 'text-gray-400 hover:text-gray-600'
                 }`}
             >
               🚌 Driver Login
@@ -150,8 +150,8 @@ const LoginPage = () => {
                     onChange={e => { setEmail(e.target.value); setErrors({}); }}
                     placeholder={placeholderEmail}
                     className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent outline-none transition-all ${tab === 'admin'
-                        ? 'focus:ring-primary-500'
-                        : 'focus:ring-yellow-400'
+                      ? 'focus:ring-primary-500'
+                      : 'focus:ring-yellow-400'
                       } ${errors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   />
                 </div>
@@ -173,8 +173,8 @@ const LoginPage = () => {
                     onChange={e => { setPassword(e.target.value); setErrors({}); }}
                     placeholder="Enter your password"
                     className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:border-transparent outline-none transition-all ${tab === 'admin'
-                        ? 'focus:ring-primary-500'
-                        : 'focus:ring-yellow-400'
+                      ? 'focus:ring-primary-500'
+                      : 'focus:ring-yellow-400'
                       } ${errors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   />
                   <button
@@ -195,8 +195,8 @@ const LoginPage = () => {
                 type="submit"
                 disabled={loading}
                 className={`w-full text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-50 flex items-center justify-center ${tab === 'admin'
-                    ? 'bg-primary-600 hover:bg-primary-700'
-                    : 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
+                  ? 'bg-primary-600 hover:bg-primary-700'
+                  : 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
                   }`}
               >
                 {loading ? (

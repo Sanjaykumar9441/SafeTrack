@@ -283,7 +283,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                   ),
                 ),
                 Text(
-                  'Powered by Gemini',
+                  'Powered by AI Assistant',
                   style: TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
