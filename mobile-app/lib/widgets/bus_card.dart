@@ -3,6 +3,7 @@ import '../config/theme.dart';
 import '../models/bus.dart';
 import '../screens/bus_detail_screen.dart';
 import '../services/api_service.dart';
+import '../screens/live_tracking_screen.dart';
 
 class BusCardWidget extends StatefulWidget {
   final Bus bus;
@@ -89,123 +90,156 @@ class _BusCardWidgetState extends State<BusCardWidget>
   Widget build(BuildContext context) {
     final isDanger = widget.bus.safetyStatus == 'DANGER';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        // Red border on DANGER
-        side: isDanger
-            ? const BorderSide(color: AppTheme.dangerColor, width: 1.5)
-            : BorderSide.none,
-      ),
-      child: Column(
-        children: [
-          if (isDanger)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: const BoxDecoration(
-                color: AppTheme.dangerColor,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.warning_rounded, color: Colors.white, size: 14),
-                  SizedBox(width: 6),
-                  Text(
-                    'EMERGENCY ALERT — This bus has an active alert',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: ApiService.liveDataStream(widget.bus.deviceId ?? ''),
+      builder: (context, snapshot) {
+        final liveData = snapshot.data;
+
+        final speed = (liveData?['speed'] ?? 0).toDouble();
+
+        final isMoving = speed > 5;
+
+        final liveStatus = isMoving ? 'RUNNING' : 'STOPPED';
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: isDanger
+                ? const BorderSide(
+                    color: AppTheme.dangerColor,
+                    width: 1.5,
+                  )
+                : BorderSide.none,
+          ),
+          child: Column(
+            children: [
+              if (isDanger)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: AppTheme.dangerColor,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
                     ),
                   ),
-                ],
-              ),
-            ),
-
-          InkWell(
-            onTap: _toggle,
-            borderRadius: BorderRadius.vertical(
-              top: isDanger ? Radius.zero : const Radius.circular(16),
-              bottom: _expanded ? Radius.zero : const Radius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Bus icon
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.directions_bus_rounded,
-                      color: AppTheme.primaryColor,
-                      size: 28,
-                    ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.warning_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'EMERGENCY ALERT — This bus has an active alert',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-
-                  // Name + number + chips
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.bus.busNumber,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: AppTheme.textPrimary,
-                          ),
+                ),
+              InkWell(
+                onTap: _toggle,
+                borderRadius: BorderRadius.vertical(
+                  top: isDanger
+                      ? Radius.zero
+                      : const Radius.circular(
+                          16,
                         ),
-                        Text(
-                          widget.bus.busName,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                          ),
+                  bottom: _expanded
+                      ? Radius.zero
+                      : const Radius.circular(
+                          16,
                         ),
-                        const SizedBox(height: 6),
-                        Row(
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.directions_bus_rounded,
+                          color: AppTheme.primaryColor,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _chip(widget.bus.status, _statusColor()),
-                            const SizedBox(width: 6),
-                            _chip(widget.bus.safetyStatus, _safetyColor()),
+                            Text(
+                              widget.bus.busNumber,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              widget.bus.busName,
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                _chip(
+                                  liveStatus,
+                                  isMoving ? AppTheme.safeColor : Colors.grey,
+                                ),
+                                const SizedBox(width: 6),
+                                _chip(
+                                  widget.bus.safetyStatus,
+                                  _safetyColor(),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      RotationTransition(
+                        turns: Tween(
+                          begin: 0.0,
+                          end: 0.5,
+                        ).animate(_chevronController),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down,
+                          color: AppTheme.textLight,
+                        ),
+                      ),
+                    ],
                   ),
-
-                  // Animated chevron
-                  RotationTransition(
-                    turns:
-                        Tween(begin: 0.0, end: 0.5).animate(_chevronController),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: AppTheme.textLight,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 250),
+                crossFadeState: _expanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                firstChild: const SizedBox.shrink(),
+                secondChild: _buildDetailPanel(),
+              ),
+            ],
           ),
-
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 250),
-            crossFadeState: _expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            firstChild: const SizedBox.shrink(),
-            secondChild: _buildDetailPanel(),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -294,7 +328,6 @@ class _BusCardWidgetState extends State<BusCardWidget>
                   ),
                   const SizedBox(height: 12),
                 ],
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -328,21 +361,19 @@ class _BusCardWidgetState extends State<BusCardWidget>
                   ),
                 ),
                 const SizedBox(height: 12),
-
                 Row(
                   children: [
                     const Icon(Icons.phone_outlined,
                         size: 14, color: AppTheme.textSecondary),
                     const SizedBox(width: 6),
-                    const Text(
-                      'Helpline: 1800-XXX-XXXX',
+                    Text(
+                      'Helpline: ${widget.bus.helpline}',
                       style: TextStyle(
                           fontSize: 12, color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
-
                 Row(
                   children: [
                     Expanded(
@@ -351,13 +382,46 @@ class _BusCardWidgetState extends State<BusCardWidget>
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  BusDetailScreen(busId: widget.bus.id),
+                              builder: (_) => BusDetailScreen(
+                                busId: widget.bus.id,
+                              ),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.info_outline, size: 16),
+                        icon: const Icon(
+                          Icons.info_outline,
+                          size: 16,
+                        ),
                         label: const Text('Full Details'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          textStyle: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => LiveTrackingScreen(
+                                busId: widget.bus.id,
+                                busName: widget.bus.busName,
+                                busNumber: widget.bus.busNumber,
+                                deviceId: widget.bus.deviceId,
+                                initialLat: widget.bus.currentLatitude,
+                                initialLng: widget.bus.currentLongitude,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.gps_fixed_rounded,
+                          size: 16,
+                        ),
+                        label: const Text('Track Live'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           textStyle: const TextStyle(fontSize: 13),

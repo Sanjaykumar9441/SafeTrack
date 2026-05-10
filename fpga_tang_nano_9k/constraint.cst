@@ -8,7 +8,7 @@ IO_PORT "i2c_sda" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8;
 IO_LOC  "i2c_scl" 26;
 IO_PORT "i2c_scl" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8;
 
-// Safety Sensor Inputs
+// Digital Sensor Inputs
 IO_LOC  "flame_in" 27;
 IO_PORT "flame_in" IO_TYPE=LVCMOS33;
 IO_LOC  "mq2_in" 28;
@@ -16,12 +16,16 @@ IO_PORT "mq2_in" IO_TYPE=LVCMOS33;
 IO_LOC  "seat_in" 29;
 IO_PORT "seat_in" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
-// GPS Module (NEO-6M)
-IO_LOC  "gps_rx" 31;      // Wire this to GPS TX pin
-IO_PORT "gps_rx" IO_TYPE=LVCMOS33;
+// UART Transmit to ESP32 (Normal Telemetry)
+IO_LOC  "uart_tx" 63;
+IO_PORT "uart_tx" IO_TYPE=LVCMOS33;
 
-// GSM Module (SIM800L)
-IO_LOC  "gsm_tx" 32;      // Wire this to GSM RX pin
+// --- NEW PIN MAPPINGS FOR GPS & GSM ---
+IO_LOC  "gps_rx" 31;
+IO_PORT "gps_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC  "gsm_tx" 32;
 IO_PORT "gsm_tx" IO_TYPE=LVCMOS33;
-IO_LOC  "gsm_rx" 33;      // Wire this to GSM TX pin
+
+IO_LOC  "gsm_rx" 33;
 IO_PORT "gsm_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;

@@ -14,54 +14,53 @@ class AiService {
     required double speed,
     required String busNumber,
   }) async {
-    try {
-      final callable = _functions.httpsCallable('askGemini');
+    String risk = 'LOW';
 
-      final prompt = '''
-You are a bus safety AI for SafeTrack.
+    String prediction = 'Bus is operating normally.';
 
-Analyze these live bus conditions:
+    String action = 'No immediate danger detected.';
 
-Bus Number: $busNumber
-Temperature: $temperature °C
-Flame Detected: $flameDetected
-Smoke Detected: $smokeDetected
-Tilt Angle: $tiltAngle °
-Speed: $speed km/h
+    // CRITICAL
+    if (temperature > 70 || flameDetected) {
+      risk = 'CRITICAL';
 
-Return ONLY one word:
-LOW
-MEDIUM
-HIGH
-CRITICAL
-''';
+      prediction = 'Fire hazard detected inside bus.';
 
-      final response = await callable.call({
-        'prompt': prompt,
-      });
-
-      final data = Map<String, dynamic>.from(response.data);
-
-      final result = (data['text'] ?? 'LOW').toString().trim().toUpperCase();
-
-      return PredictiveResult(
-        riskLevel: result,
-        prediction: 'AI analyzed current bus conditions.',
-        action: result == 'CRITICAL'
-            ? 'Stop the bus immediately.'
-            : result == 'HIGH'
-                ? 'Monitor the bus carefully.'
-                : 'No immediate danger detected.',
-      );
-    } catch (e) {
-      print('Predict Risk Error: $e');
-
-      return PredictiveResult(
-        riskLevel: 'LOW',
-        prediction: 'Unable to analyze at this time.',
-        action: 'Monitor sensors manually.',
-      );
+      action = 'Stop the bus immediately.';
     }
+
+    // HIGH
+    else if (smokeDetected || tiltAngle > 30) {
+      risk = 'HIGH';
+
+      prediction = 'Possible accident or smoke detected.';
+
+      action = 'Inspect the bus immediately.';
+    }
+
+    // MEDIUM
+    else if (speed > 80) {
+      risk = 'MEDIUM';
+
+      prediction = 'Bus speed is high.';
+
+      action = 'Drive carefully.';
+    }
+
+    // LOW
+    else {
+      risk = 'LOW';
+
+      prediction = 'Bus is currently safe.';
+
+      action = 'No immediate action required.';
+    }
+
+    return PredictiveResult(
+      riskLevel: risk,
+      prediction: prediction,
+      action: action,
+    );
   }
 
   static Future<String> chat({
@@ -97,6 +96,10 @@ Current Bus Context:
 - Route: ${busContext['source']} → ${busContext['destination']}
 - Seats Available: ${busContext['availableSeats']} of ${busContext['seatCapacity']}
 - Temperature: ${busContext['temperature']}°C
+- Departure: ${busContext['departureTime']}
+- Arrival: ${busContext['arrivalTime']}
+- Service Number: ${busContext['serviceNumber']}
+- Stops: ${busContext['intermediateStops']}
 ''';
     }
 
@@ -112,7 +115,7 @@ $userMessage
 ''';
 
     try {
-      final callable = _functions.httpsCallable('askGemini');
+      final callable = _functions.httpsCallable('askAI');
 
       final response = await callable.call({
         'prompt': finalPrompt,

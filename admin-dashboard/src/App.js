@@ -12,6 +12,8 @@ import CreateRoute from './components/Route/CreateRoute';
 import RouteList from './components/Route/RouteList';
 import AlertsPanel from './components/Alerts/AlertsPanel';
 import LiveDataPanel from './components/LiveData/LiveDataPanel';
+import DriverBusSelect from './components/Driver/DriverBusSelect';
+import DriverTerminal from './components/Driver/DriverTerminal';
 
 const ProtectedRoute = ({ children }) => {
   const { admin, loading } = useAuth();
@@ -56,12 +58,33 @@ function AppRoutes() {
         <Route path="routes/create" element={<CreateRoute />} />
         <Route path="alerts" element={<AlertsPanel />} />
         <Route path="live-data" element={<LiveDataPanel />} />
+        <Route path="/driver/bus-select" element={<DriverRoute><DriverBusSelect /></DriverRoute>} />
+        <Route path="/driver/terminal" element={<DriverRoute><DriverTerminal /></DriverRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
+
+
+const DriverRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'driver') {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
 
 function App() {
   return (

@@ -14,6 +14,7 @@ import '../services/ai_service.dart';
 import 'ai_safety_chat_screen.dart';
 import '../config/theme.dart';
 import '../services/api_service.dart';
+import 'live_tracking_screen.dart';
 
 class BusDetailScreen extends StatefulWidget {
   final String busId;
@@ -38,6 +39,7 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
   // Map
   GoogleMapController? _mapController;
   LatLng? _busPosition;
+  int _currentStopIndex = -1;
   int? _liveAvailableSeats;
   int _occupiedSeats = 0;
   String _seatStatus = 'EMPTY';
@@ -60,7 +62,6 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     _mapController?.dispose();
     super.dispose();
   }
-
 
   Widget _buildAiPredictionBanner() {
     if (_loadingPrediction && _aiPrediction == null) {
@@ -147,7 +148,6 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     );
   }
 
-
   Future<void> _loadFavorite() async {
     final prefs = await SharedPreferences.getInstance();
     final favs = prefs.getStringList('favorite_buses') ?? [];
@@ -173,7 +173,6 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
       ),
     );
   }
-
 
   Future<void> _loadAiPrediction(Map<String, dynamic> liveData) async {
     if (_loadingPrediction) return;
@@ -204,7 +203,6 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     if (text == 'UNSAFE' || text == 'DANGER') return 45.0;
     return double.tryParse(value.toString()) ?? 0.0;
   }
-
 
   Future<void> _loadBusDetail() async {
     setState(() {
@@ -246,6 +244,56 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     return double.tryParse(v.toString()) ?? 0.0;
   }
 
+  double _distance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    final dx = lat1 - lat2;
+    final dy = lon1 - lon2;
+
+    return (dx * dx) + (dy * dy);
+  }
+
+  void _detectCurrentStop() {
+    if (busDetail == null || _busPosition == null) {
+      return;
+    }
+
+    final stops = busDetail!['intermediateStops'] as List<dynamic>;
+
+    double minDistance = double.infinity;
+
+    int nearestIndex = -1;
+
+    for (int i = 0; i < stops.length; i++) {
+      final stop = stops[i];
+
+      final lat = (stop['latitude'] ?? 0).toDouble();
+
+      final lng = (stop['longitude'] ?? 0).toDouble();
+
+      final dist = _distance(
+        _busPosition!.latitude,
+        _busPosition!.longitude,
+        lat,
+        lng,
+      );
+
+      if (dist < minDistance) {
+        minDistance = dist;
+
+        nearestIndex = i;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _currentStopIndex = nearestIndex;
+      });
+    }
+  }
 
   String _buildSharePayload() {
     final busNumber = busDetail?['busNumber'] ?? '';
@@ -396,7 +444,6 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
     }
   }
 
-
   Color _getStatusColor(String status) {
     switch (status) {
       case 'RUNNING':
@@ -418,7 +465,6 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
         return AppTheme.safeColor;
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -549,7 +595,6 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                 ),
                               ),
                               const SizedBox(height: 16),
-
                               Row(
                                 children: [
                                   Expanded(
@@ -573,10 +618,41 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                   ),
                                 ],
                               ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildSectionTitle('Live Location'),
+                                  TextButton.icon(
+                                    onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => LiveTrackingScreen(
+                                          busId: widget.busId,
+                                          busName: busDetail?['busName'] ?? '',
+                                          busNumber:
+                                              busDetail?['busNumber'] ?? '',
+                                          deviceId: busDetail?['deviceId'],
+                                          initialLat: _toDouble(
+                                              busDetail?['currentLatitude']),
+                                          initialLng: _toDouble(
+                                              busDetail?['currentLongitude']),
+                                        ),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.fullscreen_rounded,
+                                        size: 16),
+                                    label: const Text('Full Screen'),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: AppTheme.primaryColor,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                    ),
+                                  ),
+                                ],
+                              ),
                               const SizedBox(height: 16),
-
                               _buildAiPredictionBanner(),
-
                               if (busDetail!['source'] != null) ...[
                                 _buildSectionTitle('Route Information'),
                                 Container(
@@ -637,6 +713,7 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                             return _buildRouteStop(
                                               stop['name'] ?? '',
                                               stop['arrivalTime'] ?? '',
+                                              index: i,
                                             );
                                           },
                                         ),
@@ -650,7 +727,6 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                 ),
                               ],
                               const SizedBox(height: 16),
-
                               _buildSectionTitle('Safety History'),
                               Container(
                                 width: double.infinity,
@@ -748,13 +824,10 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                 ),
                               ),
                               const SizedBox(height: 16),
-
                               if (_busPosition != null) ...[
-                                _buildSectionTitle('Live Location'),
                                 _buildMapCard(),
                                 const SizedBox(height: 16),
                               ],
-
                               const SizedBox(height: 8),
                             ],
                           ),
@@ -763,7 +836,6 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                     ),
     );
   }
-
 
   Widget _buildMapCard() {
     return Container(
@@ -805,6 +877,7 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) {
                             setState(() => _busPosition = newPos);
+                            _detectCurrentStop();
                             _mapController?.animateCamera(
                               CameraUpdate.newLatLng(newPos),
                             );
@@ -841,7 +914,6 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
       mapToolbarEnabled: false,
     );
   }
-
 
   Widget _buildStatusChip(String label, Color color) {
     return Container(
@@ -907,8 +979,13 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
     );
   }
 
-  Widget _buildRouteStop(String name, String time,
-      {bool isFirst = false, bool isLast = false}) {
+  Widget _buildRouteStop(
+    String name,
+    String time, {
+    int index = -1,
+    bool isFirst = false,
+    bool isLast = false,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -919,27 +996,31 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
               height: 14,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isFirst
-                    ? AppTheme.safeColor
-                    : isLast
-                        ? AppTheme.dangerColor
-                        : AppTheme.primaryColor,
-                border: Border.all(color: Colors.white, width: 2),
+                color: index == _currentStopIndex
+                    ? Colors.orange
+                    : isFirst
+                        ? AppTheme.safeColor
+                        : isLast
+                            ? AppTheme.dangerColor
+                            : AppTheme.primaryColor,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: (isFirst
-                            ? AppTheme.safeColor
-                            : isLast
-                                ? AppTheme.dangerColor
-                                : AppTheme.primaryColor)
-                        .withValues(alpha: 0.3),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 4,
                   ),
                 ],
               ),
             ),
             if (!isLast)
-              Container(width: 2, height: 30, color: Colors.grey[300]),
+              Container(
+                width: 2,
+                height: 30,
+                color: Colors.grey[300],
+              ),
           ],
         ),
         const SizedBox(width: 12),
@@ -949,18 +1030,48 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(name,
-                    style: TextStyle(
-                      fontWeight: isFirst || isLast
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      color: AppTheme.textPrimary,
-                      fontSize: 14,
-                    )),
+                Row(
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontWeight: isFirst || isLast
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (index == _currentStopIndex)
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'LIVE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 if (time.isNotEmpty)
-                  Text(time,
-                      style: const TextStyle(
-                          color: AppTheme.textSecondary, fontSize: 12)),
+                  Text(
+                    time,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
               ],
             ),
           ),

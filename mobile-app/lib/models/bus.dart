@@ -2,10 +2,14 @@ class Bus {
   final String id;
   final String busNumber;
   final String busName;
+  final String source;
+  final String destination;
+  final List<dynamic> intermediateStops;
   final int seatCapacity;
   final int availableSeats;
   final String status;
   final String safetyStatus;
+  final String helpline;
   final bool isActive;
   final double currentLatitude;
   final double currentLongitude;
@@ -16,10 +20,14 @@ class Bus {
     required this.id,
     required this.busNumber,
     required this.busName,
+    required this.source,
+    required this.destination,
+    required this.intermediateStops,
     required this.seatCapacity,
     required this.availableSeats,
     required this.status,
     required this.safetyStatus,
+    required this.helpline,
     required this.isActive,
     required this.currentLatitude,
     required this.currentLongitude,
@@ -32,10 +40,14 @@ class Bus {
       id: json['id'] ?? '',
       busNumber: json['busNumber'] ?? '',
       busName: json['busName'] ?? '',
+      source: json['source'] ?? '',
+      destination: json['destination'] ?? '',
+      intermediateStops: json['intermediateStops'] ?? [],
       seatCapacity: _toInt(json['seatCapacity']),
       availableSeats: _toInt(json['availableSeats']),
       status: json['status'] ?? 'STOPPED',
       safetyStatus: json['safetyStatus'] ?? 'SAFE',
+      helpline: json['helpline'] ?? '',
       isActive: json['isActive'] ?? false,
       currentLatitude: _toDouble(json['currentLatitude']),
       currentLongitude: _toDouble(json['currentLongitude']),

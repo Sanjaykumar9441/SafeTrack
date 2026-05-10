@@ -7,6 +7,10 @@ import '../widgets/live_stats_card.dart';
 import 'bus_detail_screen.dart';
 import 'search_results_screen.dart';
 import 'nearby_stops_screen.dart';
+import 'package:provider/provider.dart';
+import '../providers/favorites_provider.dart';
+import '../widgets/bus_card.dart';
+import '../models/bus.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,7 +35,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-
   void _showLoading() {
     showDialog(
       context: context,
@@ -51,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 
   void _trackByVehicleNumber() async {
     final number = _vehicleNumberController.text.trim();
@@ -134,7 +136,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _showSnackBar('Service number not found');
     }
   }
-
 
   void _openTrackVehicleSheet() {
     _vehicleNumberController.clear();
@@ -410,7 +411,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -521,9 +521,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
@@ -579,6 +577,158 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      Consumer<FavoritesProvider>(
+                        builder: (context, favorites, child) {
+                          return StreamBuilder<List<Bus>>(
+                            stream: ApiService.busesStream(),
+                            builder: (context, snapshot) {
+                              // Show empty hint even before data loads
+                              final allBuses = snapshot.data ?? [];
+                              final favoriteBuses = allBuses
+                                  .where((bus) =>
+                                      favorites.favIds.contains(bus.id))
+                                  .toList();
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // ── Section header ──
+                                  Row(
+                                    children: [
+                                      const Text(
+                                        'Favorite Buses',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.textPrimary,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      if (favoriteBuses.isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '${favoriteBuses.length}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // ── Empty state ──
+                                  if (favoriteBuses.isEmpty)
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 28, horizontal: 16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: Colors.grey
+                                              .withValues(alpha: 0.15),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Icon(
+                                            Icons.favorite_border_rounded,
+                                            size: 36,
+                                            color: Colors.grey[300],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            'No favorites yet',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Tap ♥ on any bus to save it here',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[400],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+
+                                  // ── Favorites vertical list ──
+                                  else
+                                    ListView.builder(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: favoriteBuses.length,
+                                      itemBuilder: (context, index) {
+                                        final bus = favoriteBuses[index];
+                                        return Stack(
+                                          children: [
+                                            BusCardWidget(bus: bus),
+                                            // ❤ Saved badge
+                                            Positioned(
+                                              top: 10,
+                                              right: 48,
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 7,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red
+                                                      .withValues(alpha: 0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.favorite_rounded,
+                                                        size: 10,
+                                                        color: Colors.red),
+                                                    SizedBox(width: 3),
+                                                    Text(
+                                                      'Saved',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: Colors.red,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+
+                                  const SizedBox(height: 24),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),

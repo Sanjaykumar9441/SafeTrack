@@ -54,11 +54,7 @@ class SafeTrackBottomNav extends StatelessWidget {
           vertical: 8,
         ),
         decoration: BoxDecoration(
-          gradient: isSelected && isAi
-              ? const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                )
-              : null,
+          gradient: null,
           color: isSelected && !isAi
               ? AppTheme.primaryColor.withValues(alpha: 0.1)
               : Colors.transparent,
@@ -68,9 +64,7 @@ class SafeTrackBottomNav extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isSelected
-                  ? (isAi ? Colors.white : AppTheme.primaryColor)
-                  : Colors.grey.shade600,
+              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade600,
               size: isAi ? 24 : 22,
             ),
             if (isSelected || isAi) ...[
@@ -78,9 +72,8 @@ class SafeTrackBottomNav extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected
-                      ? (isAi ? Colors.white : AppTheme.primaryColor)
-                      : Colors.grey.shade700,
+                  color:
+                      isSelected ? AppTheme.primaryColor : Colors.grey.shade700,
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                 ),

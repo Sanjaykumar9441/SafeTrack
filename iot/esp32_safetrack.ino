@@ -29,13 +29,16 @@
 #include <TinyGPSPlus.h>
 #include <WiFi.h>
 
-// WiFi credentials — fill these before uploading
-const char *WIFI_SSID = "";
-const char *WIFI_PASSWORD = "";
+// Credentials loaded from secrets.h (not tracked by git).
+// Copy secrets.h.example to secrets.h and fill in your values.
+#include "secrets.h"
+
+const char *WIFI_SSID = SECRET_WIFI_SSID;
+const char *WIFI_PASSWORD = SECRET_WIFI_PASSWORD;
 
 // Firebase project settings
-const char *FIREBASE_PROJECT_ID = "safedrive-144";
-const char *FIREBASE_API_KEY = "AIzaSyBTrDjbGYfv2vkRBheq4XjLhqY7jUMqEMs";
+const char *FIREBASE_PROJECT_ID = SECRET_FIREBASE_PROJECT_ID;
+const char *FIREBASE_API_KEY = SECRET_FIREBASE_API_KEY;
 
 // device and bus identifiers (must match the Firestore bus document)
 const char *DEVICE_ID = "ESP32_001";
@@ -161,9 +164,12 @@ void sendToFirestore() {
   }
 
   HTTPClient http;
+  // MAC-address-based Firestore path: devices/{deviceId}/readings
   String url = "https://firestore.googleapis.com/v1/projects/";
   url += FIREBASE_PROJECT_ID;
-  url += "/databases/(default)/documents/live_data?key=";
+  url += "/databases/(default)/documents/devices/";
+  url += DEVICE_ID;
+  url += "/readings?key=";
   url += FIREBASE_API_KEY;
 
   http.begin(url);

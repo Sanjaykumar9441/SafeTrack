@@ -25,8 +25,15 @@ class _BusesScreenState extends State<BusesScreen> {
     if (_searchQuery.isEmpty) return buses;
     final q = _searchQuery.toLowerCase();
     return buses.where((b) {
+      final stopMatch = b.intermediateStops.any(
+        (stop) => stop['name'].toString().toLowerCase().contains(q),
+      );
+
       return b.busNumber.toLowerCase().contains(q) ||
-          b.busName.toLowerCase().contains(q);
+          b.busName.toLowerCase().contains(q) ||
+          b.source.toLowerCase().contains(q) ||
+          b.destination.toLowerCase().contains(q) ||
+          stopMatch;
     }).toList();
   }
 
@@ -45,7 +52,7 @@ class _BusesScreenState extends State<BusesScreen> {
               onChanged: (v) => setState(() => _searchQuery = v),
               style: const TextStyle(color: AppTheme.textPrimary),
               decoration: InputDecoration(
-                hintText: 'Search by bus number or name...',
+                hintText: 'Search by bus, route or stop...',
                 hintStyle: const TextStyle(color: AppTheme.textLight),
                 prefixIcon: const Icon(Icons.search, color: AppTheme.textLight),
                 filled: true,

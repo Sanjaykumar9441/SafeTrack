@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiActivity, FiThermometer, FiMapPin, FiAlertCircle, FiWifi } from 'react-icons/fi';
 import { db } from '../../firebase';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { collection, collectionGroup, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 const LiveDataPanel = () => {
@@ -9,7 +9,8 @@ const LiveDataPanel = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const liveQuery = query(collection(db, 'live_data'), orderBy('timestamp', 'desc'), limit(20));
+    // Query across all devices/{deviceId}/readings subcollections (MAC-address-based paths)
+    const liveQuery = query(collectionGroup(db, 'readings'), orderBy('timestamp', 'desc'), limit(20));
     const unsubscribe = onSnapshot(liveQuery, (snapshot) => {
       setLiveData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);

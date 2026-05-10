@@ -1,43 +1,76 @@
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const axios = require("axios");
 const twilio = require("twilio");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+require("dotenv").config();
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 // all credentials loaded from environment variables (set via Firebase Functions config or .env)
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_AUTH_TOKEN  = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER;
 
 const SLACK_WEBHOOKS = {
-  police:    process.env.SLACK_WEBHOOK_POLICE,
+  police: process.env.SLACK_WEBHOOK_POLICE,
   ambulance: process.env.SLACK_WEBHOOK_AMBULANCE,
-  fire:      process.env.SLACK_WEBHOOK_FIRE,
+  fire: process.env.SLACK_WEBHOOK_FIRE,
 };
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID   = process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 // phone numbers to call during emergencies
 const EMERGENCY_CONTACTS = [
-  { name: "Police", phone: process.env.EMERGENCY_PHONE_POLICE || "+910000000000" },
+  { name: "Police", phone: process.env.EMERGENCY_PHONE_POLICE || "+917095009441" },
 ];
 
-// Gemini AI callable function — used by the mobile app for safety chat
-exports.askGemini = onCall(
+exports.askAI = onCall(
   { region: "asia-south1" },
   async (request) => {
     try {
       const prompt = request.data.prompt;
-      if (!prompt) throw new HttpsError("invalid-argument", "Prompt is required");
+      console.log("Prompt:", prompt);
+      console.log("Groq Key Exists:", !!GROQ_API_KEY);
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(prompt);
-      return { success: true, text: result.response.text() };
+      const response = await axios.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: "llama-3.1-8b-instant",
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+        },
+        {
+          headers: {
+            Authorization:
+              `Bearer ${GROQ_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const text =
+        response.data.choices[0].message.content;
+
+      return {
+        success: true,
+        text: text,
+      };
     } catch (error) {
-      console.error("Gemini Error:", error);
-      throw new HttpsError("internal", error.message || "Gemini failed.");
+      console.error(
+        "Groq Error Full:",
+        error.response?.data ||
+        error.message ||
+        error
+      );
+
+      throw new HttpsError(
+        "internal",
+        "Groq AI failed."
+      );
     }
   }
 );
@@ -76,21 +109,26 @@ async function sendSlackAlert({ alertType, busNumber, severity, latitude, longit
       color: colorMap[severity] || "#FF0000",
       blocks: [
         { type: "header", text: { type: "plain_text", text: `${alertType} ALERT — Bus ${busNumber}`, emoji: true } },
-        { type: "section", fields: [
-          { type: "mrkdwn", text: `*Alert Type:*\n${alertType}` },
-          { type: "mrkdwn", text: `*Bus Number:*\n${busNumber}` },
-          { type: "mrkdwn", text: `*Severity:*\n${severity}` },
-          { type: "mrkdwn", text: `*Message:*\n${message}` },
-        ]},
+        {
+          type: "section", fields: [
+            { type: "mrkdwn", text: `*Alert Type:*\n${alertType}` },
+            { type: "mrkdwn", text: `*Bus Number:*\n${busNumber}` },
+            { type: "mrkdwn", text: `*Severity:*\n${severity}` },
+            { type: "mrkdwn", text: `*Message:*\n${message}` },
+          ]
+        },
         { type: "divider" },
-        { type: "section",
+        {
+          type: "section",
           text: { type: "mrkdwn", text: hasLocation ? `*Location:* ${latitude.toFixed(4)}, ${longitude.toFixed(4)}` : "*Location:* Not available" },
           ...(hasLocation && { accessory: { type: "button", text: { type: "plain_text", text: "Open in Google Maps", emoji: true }, url: mapsUrl, style: "primary" } }),
         },
-        { type: "actions", elements: [
-          ...(hasLocation ? [{ type: "button", text: { type: "plain_text", text: "View Location", emoji: true }, url: mapsUrl, style: "primary" }] : []),
-          { type: "button", text: { type: "plain_text", text: "View Bus Details", emoji: true }, url: `https://safedrive-144.web.app/dashboard/alerts`, style: "danger" },
-        ]},
+        {
+          type: "actions", elements: [
+            ...(hasLocation ? [{ type: "button", text: { type: "plain_text", text: "View Location", emoji: true }, url: mapsUrl, style: "primary" }] : []),
+            { type: "button", text: { type: "plain_text", text: "View Bus Details", emoji: true }, url: `https://safedrive-144.web.app/dashboard/alerts`, style: "danger" },
+          ]
+        },
         { type: "context", elements: [{ type: "mrkdwn", text: `Alert ID: ${alertId} | SafeTrack` }] },
       ],
     }],
@@ -129,7 +167,7 @@ exports.sendEmergencyAlert = onRequest(
     if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
 
     const { alertType = "EMERGENCY", busNumber = "Unknown", severity = "CRITICAL",
-            latitude = 0, longitude = 0, message = "Emergency detected", alertId = "" } = req.body;
+      latitude = 0, longitude = 0, message = "Emergency detected", alertId = "" } = req.body;
 
     const results = { calls: [], slack: null, telegram: null, errors: [] };
 

@@ -1,0 +1,13 @@
+{
+  "name": "safetrack-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SafeTrack bus simulator and root-level tooling",
+  "scripts": {
+    "simulate": "node simulate_bus.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "firebase": "^10.14.0"
+  }
+}

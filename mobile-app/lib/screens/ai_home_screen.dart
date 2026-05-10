@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../config/theme.dart';
 import '../services/ai_service.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 class AiHomeScreen extends StatefulWidget {
   const AiHomeScreen({super.key});
@@ -17,6 +19,13 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   bool _loading = false;
   int _activeBuses = 0;
   int _activeAlerts = 0;
+  Map<String, dynamic>? _latestBus;
+  Map<String, dynamic>? _latestRoute;
+  final SpeechToText _speech = SpeechToText();
+  final FlutterTts _tts = FlutterTts();
+
+  bool _isListening = false;
+  bool _isSpeaking = false;
 
   final List<String> _suggestions = [
     'How many buses are active now?',
@@ -31,6 +40,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
   void initState() {
     super.initState();
     _loadStats();
+    _initTts();
     _messages.add({
       'role': 'assistant',
       'text':
@@ -45,6 +55,37 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     super.dispose();
   }
 
+  Future<void> _initTts() async {
+    await _tts.setLanguage("en-US");
+
+    await _tts.setSpeechRate(0.45);
+
+    await _tts.setPitch(1.0);
+    _tts.setStartHandler(() {
+      if (mounted) {
+        setState(() {
+          _isSpeaking = true;
+        });
+      }
+    });
+
+    _tts.setCompletionHandler(() {
+      if (mounted) {
+        setState(() {
+          _isSpeaking = false;
+        });
+      }
+    });
+
+    _tts.setCancelHandler(() {
+      if (mounted) {
+        setState(() {
+          _isSpeaking = false;
+        });
+      }
+    });
+  }
+
   Future<void> _loadStats() async {
     try {
       final buses = await FirebaseFirestore.instance
@@ -55,10 +96,20 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
           .collection('alerts')
           .where('isResolved', isEqualTo: false)
           .get();
+      final latestBus =
+          await FirebaseFirestore.instance.collection('buses').limit(1).get();
+      final latestRoute =
+          await FirebaseFirestore.instance.collection('routes').limit(1).get();
       if (mounted) {
         setState(() {
           _activeBuses = buses.docs.length;
           _activeAlerts = alerts.docs.length;
+
+          _latestBus =
+              latestBus.docs.isNotEmpty ? latestBus.docs.first.data() : null;
+          _latestRoute = latestRoute.docs.isNotEmpty
+              ? latestRoute.docs.first.data()
+              : null;
         });
       }
     } catch (_) {}
@@ -68,17 +119,17 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         'activeBuses': _activeBuses,
         'activeAlerts': _activeAlerts,
         'appName': 'SafeTrack',
-        'busName': 'General Query',
-        'busNumber': '',
-        'status': '',
-        'safetyStatus': '',
-        'temperature': '',
-        'availableSeats': '',
-        'seatCapacity': '',
-        'source': '',
-        'destination': '',
-        'serviceNumber': '',
-        'helpline': '',
+        'busName': _latestBus?['busName'] ?? '',
+        'busNumber': _latestBus?['busNumber'] ?? '',
+        'status': _latestBus?['status'] ?? '',
+        'safetyStatus': _latestBus?['safetyStatus'] ?? '',
+        'availableSeats': _latestBus?['availableSeats'] ?? '',
+        'seatCapacity': _latestBus?['seatCapacity'] ?? '',
+        'source': _latestRoute?['source'] ?? '',
+        'destination': _latestRoute?['destination'] ?? '',
+        'arrivalTime': _latestRoute?['arrivalTime'] ?? '',
+        'departureTime': _latestRoute?['departureTime'] ?? '',
+        'serviceNumber': _latestRoute?['serviceNumber'] ?? '',
       };
 
   Future<void> _sendMessage(String text) async {
@@ -98,7 +149,6 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
           .map((m) => {'role': m['role']!, 'content': m['text']!})
           .toList();
 
-
       final reply = await AiService.chat(
         userMessage: text,
         history: history,
@@ -107,9 +157,15 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
 
       if (mounted) {
         setState(() {
-          _messages.add({'role': 'assistant', 'text': reply});
+          _messages.add({
+            'role': 'assistant',
+            'text': reply,
+          });
+
           _loading = false;
         });
+
+        await _tts.speak(reply);
         _scrollToBottom();
       }
     } catch (_) {
@@ -123,6 +179,68 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
         });
       }
     }
+  }
+
+  Future<void> _startListening() async {
+    bool available = await _speech.initialize();
+
+    if (available) {
+      setState(() {
+        _isListening = true;
+      });
+
+      Future<void> _startListening() async {
+        bool available = await _speech.initialize();
+
+        if (available) {
+          setState(() {
+            _isListening = true;
+          });
+
+          _speech.listen(
+            listenFor: const Duration(seconds: 15),
+            pauseFor: const Duration(seconds: 2),
+            onResult: (result) async {
+              setState(() {
+                _controller.text = result.recognizedWords;
+              });
+
+              if (result.finalResult) {
+                final text = result.recognizedWords.trim();
+
+                await _stopListening();
+
+                if (text.isNotEmpty) {
+                  _sendMessage(text);
+                }
+              }
+            },
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _stopListening() async {
+    await _speech.stop();
+
+    setState(() {
+      _isListening = false;
+    });
+  }
+
+  Future<void> _speakMessage(String text) async {
+    if (_isSpeaking) {
+      await _tts.stop();
+
+      setState(() {
+        _isSpeaking = false;
+      });
+
+      return;
+    }
+
+    await _tts.speak(text);
   }
 
   void _scrollToBottom() {
@@ -191,7 +309,6 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
               ],
             ),
           ),
-
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -206,7 +323,6 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
               },
             ),
           ),
-
           if (_messages.length <= 1)
             SizedBox(
               height: 44,
@@ -226,9 +342,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                 ),
               ),
             ),
-
           const SizedBox(height: 8),
-
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             decoration: BoxDecoration(
@@ -262,6 +376,31 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
                     onSubmitted: _sendMessage,
                   ),
                 ),
+                GestureDetector(
+                  onTap: () {
+                    if (_isListening) {
+                      _stopListening();
+                    } else {
+                      _startListening();
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _isListening
+                          ? const Color(0xFF6366F1)
+                          : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: _isListening
+                        ? const _VoiceWave()
+                        : const Icon(
+                            Icons.mic_none,
+                            color: Colors.black87,
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () => _sendMessage(_controller.text),
@@ -329,13 +468,43 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
             ),
           ],
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isUser ? Colors.white : AppTheme.textPrimary,
-            fontSize: 14,
-            height: 1.4,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              text,
+              style: TextStyle(
+                color: isUser ? Colors.white : AppTheme.textPrimary,
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+            if (!isUser) ...[
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => _speakMessage(text),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isSpeaking ? Icons.stop_circle : Icons.volume_up,
+                      size: 18,
+                      color: const Color(0xFF6366F1),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isSpeaking ? 'Stop' : 'Listen',
+                      style: const TextStyle(
+                        color: Color(0xFF6366F1),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -411,6 +580,86 @@ class _AnimatedDotState extends State<_AnimatedDot>
           shape: BoxShape.circle,
         ),
       ),
+    );
+  }
+}
+
+class _VoiceWave extends StatefulWidget {
+  const _VoiceWave();
+
+  @override
+  State<_VoiceWave> createState() => _VoiceWaveState();
+}
+
+class _VoiceWaveState extends State<_VoiceWave> with TickerProviderStateMixin {
+  late final AnimationController _c1;
+  late final AnimationController _c2;
+  late final AnimationController _c3;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _c1 = _buildController(0);
+    _c2 = _buildController(150);
+    _c3 = _buildController(300);
+  }
+
+  AnimationController _buildController(int delay) {
+    final c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+      lowerBound: 0.3,
+      upperBound: 1.0,
+    );
+
+    Future.delayed(
+      Duration(milliseconds: delay),
+      () {
+        if (mounted) {
+          c.repeat(reverse: true);
+        }
+      },
+    );
+
+    return c;
+  }
+
+  @override
+  void dispose() {
+    _c1.dispose();
+    _c2.dispose();
+    _c3.dispose();
+    super.dispose();
+  }
+
+  Widget _bar(AnimationController c) {
+    return AnimatedBuilder(
+      animation: c,
+      builder: (_, __) {
+        return Container(
+          width: 4,
+          height: 18 * c.value,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _bar(_c1),
+        _bar(_c2),
+        _bar(_c3),
+      ],
     );
   }
 }

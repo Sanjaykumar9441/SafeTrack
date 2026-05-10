@@ -7,12 +7,8 @@ class ContactScreen extends StatelessWidget {
 
   void _launchUrl(String url) async {
     final uri = Uri.parse(url);
-
     try {
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
       debugPrint("Could not launch $url");
     }
@@ -22,12 +18,8 @@ class ContactScreen extends StatelessWidget {
     final uri = Uri.parse(
       'mailto:$email?subject=SafeTrack%20Support&body=Hello%20SafeTrack%20Team,',
     );
-
     try {
-      await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
       debugPrint("Could not launch email app");
     }
@@ -41,24 +33,34 @@ class ContactScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
         title: const Text('Contact'),
         automaticallyImplyLeading: false,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppTheme.textPrimary,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         child: Column(
           children: [
+            // ── Hero header ──
+            _buildHeroCard(),
+            const SizedBox(height: 20),
+
             _buildSection(
-              icon: Icons.person,
+              icon: Icons.person_rounded,
+              iconColor: const Color(0xFF3B82F6),
               title: 'Developer Information',
               children: [
                 _buildInfoRow(Icons.person_outline, 'Name', 'Sanjay Kumar'),
-                _buildInfoRow(Icons.school, 'College', 'Aditya University'),
-                _buildInfoRow(Icons.work, 'Department',
-                    'Electronics & Communication (ECE)'),
                 _buildInfoRow(
-                    Icons.article, 'Project', 'SafeTrack — Project Space 2026'),
+                    Icons.school_outlined, 'College', 'Aditya University'),
+                _buildInfoRow(Icons.work_outline, 'Department',
+                    'Electronics & Communication (ECE)'),
+                _buildInfoRow(Icons.rocket_launch_outlined, 'Project',
+                    'SafeTrack — Project Space 2026'),
                 _buildInfoRow(
                   Icons.email_outlined,
                   'Email',
@@ -70,55 +72,61 @@ class ContactScreen extends StatelessWidget {
                   'Phone',
                   '+91 70950 09441',
                   onTap: () => _launchPhone('+917095009441'),
+                  isLast: true,
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             _buildSection(
-              icon: Icons.info_outline,
+              icon: Icons.info_outline_rounded,
+              iconColor: const Color(0xFF8B5CF6),
               title: 'Project Information',
               children: [
                 _buildInfoRow(
-                    Icons.category, 'Type', 'Safe Drive Alert System'),
-                _buildInfoRow(Icons.memory, 'Hardware',
+                    Icons.category_outlined, 'Type', 'Safe Drive Alert System'),
+                _buildInfoRow(Icons.memory_outlined, 'Hardware',
                     'ESP32, GPS, Flame, MQ-2, MPU6050'),
-                _buildInfoRow(Icons.code, 'Tech Stack',
+                _buildInfoRow(Icons.code_rounded, 'Tech Stack',
                     'Flutter · Firebase · ESP32 · React'),
-                _buildInfoRow(Icons.cloud, 'Backend', 'Firestore (real-time)'),
                 _buildInfoRow(
-                    Icons.article, 'Standard', 'IEEE Paper Published'),
+                    Icons.cloud_outlined, 'Backend', 'Firestore (real-time)'),
+                _buildInfoRow(Icons.workspace_premium_outlined, 'Standard',
+                    'IEEE Paper Published',
+                    isLast: true),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             _buildSection(
-              icon: Icons.support_agent,
+              icon: Icons.support_agent_rounded,
+              iconColor: AppTheme.safeColor,
               title: 'Bus Helpline',
               children: [
                 _buildActionButton(
-                  Icons.phone,
+                  Icons.phone_rounded,
                   'Call Helpline',
-                  '1800-XXX-XXXX (toll free)',
+                  '',
                   AppTheme.safeColor,
-                  () => _launchPhone('1800XXXXXXX'),
+                  () => _launchPhone('+917095009441'),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             _buildSection(
-              icon: Icons.help_outline,
+              icon: Icons.help_outline_rounded,
+              iconColor: AppTheme.dangerColor,
               title: 'Support',
               children: [
                 _buildActionButton(
-                  Icons.bug_report,
+                  Icons.bug_report_outlined,
                   'Report an Issue',
                   'Found a bug? Let us know',
                   AppTheme.dangerColor,
                   () => _launchEmail('bus.alert.track@gmail.com'),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 _buildActionButton(
                   Icons.feedback_outlined,
                   'Send Feedback',
@@ -128,36 +136,30 @@ class ContactScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             _buildSection(
-              icon: Icons.link,
+              icon: Icons.link_rounded,
+              iconColor: const Color(0xFFF59E0B),
               title: 'Links',
               children: [
                 _buildLinkButton(
-                  Icons.code,
+                  Icons.code_rounded,
                   'GitHub Repository',
-                  () => _launchUrl('https://github.com/yourusername/safetrack'),
+                  () => _launchUrl(
+                      'https://github.com/Sanjaykumar9441/SafeTrack_ProjectSpace2026/tree/main'),
                 ),
                 _buildLinkButton(
-                  Icons.language,
-                  'Project Website',
-                  () => _launchUrl('https://safetrack.example.com'),
+                  Icons.language_rounded,
+                  'Admin Portal',
+                  () => _launchUrl('https://safedrive-144.web.app'),
+                  isLast: true,
                 ),
               ],
             ),
 
-            const SizedBox(height: 24),
-
-            Text(
-              '© 2026 SafeTrack — Aditya University ECE',
-              style: TextStyle(color: Colors.grey[400], fontSize: 12),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Version 1.0.0',
-              style: TextStyle(color: Colors.grey[300], fontSize: 11),
-            ),
+            const SizedBox(height: 28),
+            _buildFooter(),
             const SizedBox(height: 20),
           ],
         ),
@@ -165,83 +167,259 @@ class ContactScreen extends StatelessWidget {
     );
   }
 
+  // ── Hero card ─────────────────────────────────────────────
+  Widget _buildHeroCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppTheme.primaryDark, AppTheme.primaryColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+            ),
+            child: const Center(
+              child: Text(
+                'SK',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Sanjay Kumar',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'ECE — Aditya University',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _heroBadge('SafeTrack'),
+                    const SizedBox(width: 8),
+                    _heroBadge('v1.0.0'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  // ── Section card ──────────────────────────────────────────
   Widget _buildSection({
     required IconData icon,
+    required Color iconColor,
     required String title,
     required List<Widget> children,
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
             offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: AppTheme.primaryColor, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+          // Section header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 18),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const Divider(height: 24),
-          ...children,
+
+          // Separator
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Container(
+              height: 0.5,
+              color: Colors.grey.withValues(alpha: 0.15),
+            ),
+          ),
+
+          // Children
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+            child: Column(children: children),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value,
-      {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: AppTheme.textLight),
-            const SizedBox(width: 12),
-            Text(
-              '$label: ',
-              style:
-                  const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            ),
-            Expanded(
-              child: Text(
-                value,
-                style: TextStyle(
-                  color: onTap != null
-                      ? AppTheme.primaryColor
-                      : AppTheme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  decoration: onTap != null ? TextDecoration.underline : null,
+  // ── Info row ──────────────────────────────────────────────
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    VoidCallback? onTap,
+    bool isLast = false,
+  }) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 16, color: AppTheme.textSecondary),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Text(
+                      value,
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: onTap != null
+                            ? AppTheme.primaryColor
+                            : AppTheme.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                if (onTap != null) ...[
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 11,
+                    color: AppTheme.primaryColor.withValues(alpha: 0.6),
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        if (!isLast)
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: Colors.grey.withValues(alpha: 0.1),
+          ),
+      ],
     );
   }
 
+  // ── Action button ─────────────────────────────────────────
   Widget _buildActionButton(
     IconData icon,
     String title,
@@ -250,32 +428,66 @@ class ContactScreen extends StatelessWidget {
     VoidCallback onTap,
   ) {
     return Material(
-      color: color.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(12),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
           padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: color.withValues(alpha: 0.15),
+              width: 1,
+            ),
+          ),
           child: Row(
             children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: color,
-                          fontSize: 14)),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          color: AppTheme.textSecondary, fontSize: 11)),
-                ],
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
               ),
-              const Spacer(),
-              Icon(Icons.arrow_forward_ios, size: 16, color: color),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 14,
+                  color: color,
+                ),
+              ),
             ],
           ),
         ),
@@ -283,33 +495,134 @@ class ContactScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLinkButton(IconData icon, String title, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
+  // ── Link button ───────────────────────────────────────────
+  Widget _buildLinkButton(
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    bool isLast = false,
+  }) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 16, color: AppTheme.textSecondary),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Open',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Icon(
+                        Icons.open_in_new_rounded,
+                        size: 10,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (!isLast)
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: Colors.grey.withValues(alpha: 0.1),
+          ),
+      ],
+    );
+  }
+
+  // ── Footer ────────────────────────────────────────────────
+  Widget _buildFooter() {
+    return Column(
+      children: [
+        // IEEE badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00629B).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF00629B).withValues(alpha: 0.2),
+            ),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: AppTheme.textLight),
-              const SizedBox(width: 12),
+              Icon(
+                Icons.workspace_premium_rounded,
+                size: 14,
+                color: Color(0xFF00629B),
+              ),
+              SizedBox(width: 6),
               Text(
-                title,
-                style: const TextStyle(
-                  color: AppTheme.primaryColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                'project Space 2026',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF00629B),
                 ),
               ),
-              const Spacer(),
-              const Icon(Icons.open_in_new,
-                  size: 14, color: AppTheme.textLight),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 12),
+        Text(
+          '© 2026 SafeTrack — Aditya University ECE',
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Version 1.0.0',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 11,
+          ),
+        ),
+      ],
     );
   }
 }

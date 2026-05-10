@@ -1,17 +1,21 @@
+require('dotenv').config();
 const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, addDoc, serverTimestamp } = require('firebase/firestore');
+const { getFirestore, collection, doc, addDoc, serverTimestamp } = require('firebase/firestore');
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBTrDjbGYfv2vkRBheq4XjLhqY7jUMqEMs",
-  authDomain: "safedrive-144.firebaseapp.com",
-  projectId: "safedrive-144",
-  storageBucket: "safedrive-144.firebasestorage.app",
-  messagingSenderId: "915377574101",
-  appId: "1:915377574101:web:3ad362dd20cc87e9cdd25c"
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// Simulated device MAC address (used as Firestore document path)
+const DEVICE_ID = "SIMULATOR_1";
 
 // starting coords near Aditya University
 let lat = 17.5937;
@@ -28,7 +32,7 @@ async function pushSimulatedData() {
   const sensorData = {
     busId: "SIMULATED_BUS_001",
     busNumber: "AP-05-ST-2024",
-    deviceId: "SIMULATOR_1",
+    deviceId: DEVICE_ID,
     latitude: lat,
     longitude: lng,
     speed: 40 + Math.random() * 20,
@@ -40,7 +44,9 @@ async function pushSimulatedData() {
   };
 
   try {
-    await addDoc(collection(db, 'live_data'), sensorData);
+    // Write to devices/{deviceId}/readings subcollection (MAC-address-based path)
+    const deviceRef = doc(db, 'devices', DEVICE_ID);
+    await addDoc(collection(deviceRef, 'readings'), sensorData);
     console.log(`[${new Date().toLocaleTimeString()}] Sent: ${lat.toFixed(4)}, ${lng.toFixed(4)}, ${sensorData.temperature.toFixed(1)}C`);
 
     // 10% chance of generating a test SPEEDING alert

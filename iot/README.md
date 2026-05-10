@@ -4,14 +4,28 @@
 
 ```
 Tang Nano 9K (FPGA)  --UART 9600-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
-  (sensor processing)               (gateway + GPS)            (live_data collection)
+  (sensor processing)               (gateway + GPS)            (cloud DB)
 ```
 
-## FPGA (Tang Nano 9K)
+## ESP32
 
-Reads five digital sensors and the DHT11 temperature sensor, processes the data, and sends an 8-byte binary packet to the ESP32 over UART every ~5 seconds.
+Receives sensor telemetry from the FPGA over UART, reads GPS from a NEO-6M module, and pushes a combined JSON payload to Firebase Firestore via the REST API every 10 seconds.
 
-### Binary Packet Format
+### Source Files
+
+| File | Purpose |
+|------|---------|
+| `esp32_safetrack.ino` | Main firmware — FPGA packet parser, GPS reader, Firestore REST push |
+| `secrets.h.example` | Template for WiFi and Firebase credentials |
+
+### Wiring
+
+| Connection                  | ESP32 Pin |
+|-----------------------------|-----------|
+| Tang Nano TX (Pin 63) -> RX | GPIO 16   |
+| Tang Nano TX  -> GND | GND   |
+
+### FPGA Binary Packet Format (8 bytes)
 
 | Byte | Field       | Values                      |
 |------|-------------|-----------------------------|
@@ -24,43 +38,6 @@ Reads five digital sensors and the DHT11 temperature sensor, processes the data,
 | 6    | Emergency   | 0 = no, 1 = yes             |
 | 7    | End         | `\n` (0x0A)                 |
 
-### Sensors
-
-| Sensor      | Type    | Pin | Notes                    |
-|-------------|---------|-----|--------------------------|
-| Flame       | Digital | 25  | Active LOW               |
-| MQ-2 smoke  | Digital | 26  | HIGH = smoke detected    |
-| SW-420 tilt | Digital | 28  | HIGH = vibration          |
-| Limit switch| Digital | 29  | LOW = seat occupied       |
-| DHT11       | 1-Wire  | 30  | Temperature reading       |
-
-### LEDs
-
-| LED   | Pin | Function        |
-|-------|-----|-----------------|
-| Red   | 10  | Heartbeat blink |
-| Green | 11  | UART TX activity|
-| Blue  | 13  | Emergency state |
-
-### Source Files
-
-- `top.v` — Main module: sensor debouncing, DHT11 reading, packet assembly, UART TX scheduling
-- `uart_tx.v` — UART transmitter (9600 baud, 8N1)
-- `dht11_reader.v` — DHT11 single-wire protocol state machine
-- `tangnano9k.cst` — Pin constraint file for the Gowin IDE
-
-## ESP32
-
-Receives the binary packet from the FPGA, reads GPS from a NEO-6M module, and pushes a combined JSON payload to Firebase Firestore every 10 seconds.
-
-### Wiring
-
-| Connection                  | ESP32 Pin |
-|-----------------------------|-----------|
-| Tang Nano TX (Pin 17) -> RX | GPIO 16   |
-| NEO-6M GPS TX -> RX         | GPIO 4    |
-| NEO-6M GPS RX -> TX         | GPIO 2    |
-
 ### Dependencies (Arduino IDE)
 
 - `ArduinoJson`
@@ -70,4 +47,4 @@ Receives the binary packet from the FPGA, reads GPS from a NEO-6M module, and pu
 
 ### Configuration
 
-Before uploading, set your WiFi credentials and Firebase project details at the top of `esp32_safetrack.ino`.
+Copy `secrets.h.example` to `secrets.h` and fill in your WiFi SSID/password and Firebase project credentials. `secrets.h` is gitignored and will not be committed.

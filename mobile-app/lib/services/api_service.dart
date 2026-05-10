@@ -23,13 +23,37 @@ class ApiService {
 
   /// Returns a real-time stream of all buses.
   static Stream<List<Bus>> busesStream() {
-    return _db.collection('buses').snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return Bus.fromJson(data);
-      }).toList();
-    });
+    return _db.collection('buses').snapshots().asyncMap(
+      (snapshot) async {
+        List<Bus> buses = [];
+
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          data['id'] = doc.id;
+
+          // Get route data for this bus
+          final routeSnapshot = await _db
+              .collection('routes')
+              .where('busId', isEqualTo: doc.id)
+              .limit(1)
+              .get();
+
+          if (routeSnapshot.docs.isNotEmpty) {
+            final routeData = routeSnapshot.docs.first.data();
+
+            data['source'] = routeData['source'];
+
+            data['destination'] = routeData['destination'];
+
+            data['intermediateStops'] = routeData['intermediateStops'];
+          }
+
+          buses.add(Bus.fromJson(data));
+        }
+
+        return buses;
+      },
+    );
   }
 
   /// Searches buses by query string (client-side filtering).
@@ -220,56 +244,59 @@ class ApiService {
     });
   }
 
-  /// Creates a live data stream filtering by deviceId.
-  /// NOTE: We avoid orderBy('timestamp') combined with where('deviceId')
-  /// because Firestore requires a composite index for that combination.
-  /// Instead, we fetch all docs for the device and pick the latest client-side.
+  /// Creates a live data stream from the device's subcollection.
+  /// Firestore path: devices/{deviceId}/readings (MAC-address-based).
   static Stream<Map<String, dynamic>?> liveDataStream(String deviceId) {
     return _db
-        .collection('live_data')
-        .where('deviceId', isEqualTo: deviceId)
+        .collection('devices')
+        .doc(deviceId)
+        .collection('readings')
+        .orderBy('timestamp', descending: true)
         .limit(5)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isEmpty) return null;
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
 
-      // Pick the document with the latest timestamp client-side
-      QueryDocumentSnapshot<Map<String, dynamic>> latestDoc = snapshot.docs.first;
+      Map<String, dynamic>? validData;
+
       for (final doc in snapshot.docs) {
-        final ts = doc.data()['timestamp'];
-        final latestTs = latestDoc.data()['timestamp'];
-        if (ts is Timestamp && latestTs is Timestamp && ts.compareTo(latestTs) > 0) {
-          latestDoc = doc;
+        final data = doc.data();
+
+        final hasLocation =
+            data['latitude'] != null && data['longitude'] != null;
+
+        final hasSpeed = data['speed'] != null;
+
+        if (hasLocation || hasSpeed) {
+          validData = data;
+
+          break;
         }
       }
 
-      final data = latestDoc.data();
-      return _normalizeLiveData(data);
+      validData ??= snapshot.docs.first.data();
+
+      return _normalizeLiveData(validData);
     });
   }
 
   /// Creates a live data stream filtering by busId (fallback when deviceId
-  /// is not present on the bus document).
+  /// is not present on the bus document). Uses collectionGroup to query
+  /// across all devices/{x}/readings subcollections.
   static Stream<Map<String, dynamic>?> liveDataStreamByBusId(String busId) {
     return _db
-        .collection('live_data')
+        .collectionGroup('readings')
         .where('busId', isEqualTo: busId)
-        .limit(5)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
         .snapshots()
         .map((snapshot) {
       if (snapshot.docs.isEmpty) return null;
 
-      // Pick the latest document client-side
-      QueryDocumentSnapshot<Map<String, dynamic>> latestDoc = snapshot.docs.first;
-      for (final doc in snapshot.docs) {
-        final ts = doc.data()['timestamp'];
-        final latestTs = latestDoc.data()['timestamp'];
-        if (ts is Timestamp && latestTs is Timestamp && ts.compareTo(latestTs) > 0) {
-          latestDoc = doc;
-        }
-      }
+      final data = snapshot.docs.first.data();
 
-      final data = latestDoc.data();
       return _normalizeLiveData(data);
     });
   }
@@ -290,15 +317,13 @@ class ApiService {
 
     // smoke — ESP32 sends "SAFE"/"UNSAFE" string, simulator sends bool
     final smokeRaw = data['smoke'] ?? data['smokeDetected'];
-    data['smokeDetected'] = (smokeRaw is bool)
-        ? smokeRaw
-        : _isDangerString(smokeRaw);
+    data['smokeDetected'] =
+        (smokeRaw is bool) ? smokeRaw : _isDangerString(smokeRaw);
 
     // flame
     final flameRaw = data['flame'] ?? data['flameDetected'];
-    data['flameDetected'] = (flameRaw is bool)
-        ? flameRaw
-        : _isDangerString(flameRaw);
+    data['flameDetected'] =
+        (flameRaw is bool) ? flameRaw : _isDangerString(flameRaw);
 
     // tiltAngle — ESP32 sends "SAFE"/"UNSAFE" string
     final tiltRaw = data['tiltAngle'];
