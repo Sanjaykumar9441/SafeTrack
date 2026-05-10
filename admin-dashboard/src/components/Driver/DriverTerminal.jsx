@@ -17,7 +17,6 @@ const DriverTerminal = () => {
     const navigate = useNavigate();
 
     // Session
-    const driver = JSON.parse(localStorage.getItem('driver_session') || 'null');
     const bus = JSON.parse(localStorage.getItem('driver_bus') || 'null');
 
     // State
@@ -229,9 +228,8 @@ Next Stop: ${nextStop?.name || 'N/A'}
     // ── Logout ────────────────────────────────────────────────
 
     const handleLogout = () => {
-        localStorage.removeItem('driver_session');
         localStorage.removeItem('driver_bus');
-        navigate('/driver/login');
+        navigate('/login');
     };
 
     // ── Helpers ───────────────────────────────────────────────

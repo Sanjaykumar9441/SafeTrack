@@ -5,13 +5,11 @@ module mpu6050_reader (
     output reg signed [15:0] accel_x
 );
 
-// I2C Open-Drain Logic
 reg scl_en = 0;
 reg sda_en = 0;
 assign i2c_scl = scl_en ? 1'b0 : 1'bz;
 assign i2c_sda = sda_en ? 1'b0 : 1'bz;
 
-// I2C Clock Divider (27MHz down to ~100kHz)
 reg [7:0] clk_div = 0;
 reg i2c_tick = 0;
 always @(posedge clk) begin
@@ -24,7 +22,6 @@ always @(posedge clk) begin
     end
 end
 
-// State Machine
 reg [5:0] state = 0;
 reg [7:0] bit_cnt = 0;
 reg [7:0] data_to_send;
@@ -41,7 +38,6 @@ always @(posedge clk) begin
         case (state)
             0: if (phase == 0) state <= 1;
 
-            // --- WAKE UP MPU6050 ---
             1: begin
                 if (phase == 0) sda_en <= 1; 
                 if (phase == 1) scl_en <= 1;
@@ -99,7 +95,6 @@ always @(posedge clk) begin
                 if (phase == 3) state <= 9;  
             end
 
-            // --- READ ACCEL_X LOOP ---
             9: begin
                 if (phase == 0) sda_en <= 1; 
                 if (phase == 1) scl_en <= 1;

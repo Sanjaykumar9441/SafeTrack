@@ -12,8 +12,6 @@ const DriverBusSelect = () => {
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
 
-    const driver = JSON.parse(localStorage.getItem('driver_session') || 'null');
-
     // Load active buses
     useEffect(() => {
         const unsub = onSnapshot(collection(db, 'buses'), (snap) => {
@@ -44,9 +42,8 @@ const DriverBusSelect = () => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('driver_session');
         localStorage.removeItem('driver_bus');
-        navigate('/driver/login');
+        navigate('/login');
     };
 
     return (

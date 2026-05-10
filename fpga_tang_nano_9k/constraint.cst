@@ -1,31 +1,38 @@
-// System Clock
-IO_LOC  "clk" 52;
+IO_LOC "clk" 52;
 IO_PORT "clk" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
-// MPU6050 I2C Pins
-IO_LOC  "i2c_sda" 25;
+IO_LOC "i2c_sda" 25;
 IO_PORT "i2c_sda" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8;
-IO_LOC  "i2c_scl" 26;
+
+IO_LOC "i2c_scl" 26;
 IO_PORT "i2c_scl" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8;
 
-// Digital Sensor Inputs
-IO_LOC  "flame_in" 27;
-IO_PORT "flame_in" IO_TYPE=LVCMOS33;
-IO_LOC  "mq2_in" 28;
-IO_PORT "mq2_in" IO_TYPE=LVCMOS33;
-IO_LOC  "seat_in" 29;
-IO_PORT "seat_in" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+IO_LOC "flame_in" 27;
+IO_PORT "flame_in" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
-// UART Transmit to ESP32 (Normal Telemetry)
-IO_LOC  "uart_tx" 63;
+IO_LOC "mq2_in" 28;
+IO_PORT "mq2_in" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC "seat_bus[0]" 29;
+IO_PORT "seat_bus[0]" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC "seat_bus[1]" 30;
+IO_PORT "seat_bus[1]" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC "seat_bus[2]" 41;
+IO_PORT "seat_bus[2]" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC "seat_bus[3]" 42;
+IO_PORT "seat_bus[3]" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+IO_LOC "uart_tx" 63;
 IO_PORT "uart_tx" IO_TYPE=LVCMOS33;
 
-// --- NEW PIN MAPPINGS FOR GPS & GSM ---
-IO_LOC  "gps_rx" 31;
+IO_LOC "gps_rx" 31;
 IO_PORT "gps_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
-IO_LOC  "gsm_tx" 32;
+IO_LOC "gsm_tx" 32;
 IO_PORT "gsm_tx" IO_TYPE=LVCMOS33;
 
-IO_LOC  "gsm_rx" 33;
+IO_LOC "gsm_rx" 33;
 IO_PORT "gsm_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;

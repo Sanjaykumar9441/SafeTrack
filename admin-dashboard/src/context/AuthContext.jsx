@@ -69,7 +69,6 @@ export const AuthProvider = ({ children }) => {
     await signOut(auth);
     setUser(null);
     // Clear driver session too
-    localStorage.removeItem('driver_session');
     localStorage.removeItem('driver_bus');
   };
 

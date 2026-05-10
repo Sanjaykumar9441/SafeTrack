@@ -39,7 +39,10 @@ The Gowin Tang Nano 9K serves as the deterministic brain of the system. It is st
 | MPU-6050      | High-G impact / crash detection  | 25/26 | I2C (SDA/SCL)     |
 | IR Flame      | Live fire detection              | 27    | Active Low        |
 | MQ-2          | Smoke and combustible gas        | 28    | Active Low        |
-| Limit Switch  | Physical seat occupancy sensing  | 29    | Active Low (GND)  |
+| Limit Switch 1| Physical seat occupancy sensing  | 29    | Active Low (GND)  |
+| Limit Switch 2| Physical seat occupancy sensing  | 30    | Active Low (GND)  |
+| Limit Switch 3| Physical seat occupancy sensing  | 41    | Active Low (GND)  |
+| Limit Switch 4| Physical seat occupancy sensing  | 42    | Active Low (GND)  |
 | NEO-6M        | Continuous GPS location tracking | 31    | UART RX (From TX) |
 | SIM800L       | Zero-latency emergency SMS       | 32/33 | UART TX/RX        |
 | ESP32 UART    | Normal telemetry output          | 63    | UART TX           |
