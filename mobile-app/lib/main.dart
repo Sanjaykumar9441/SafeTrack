@@ -40,7 +40,14 @@ class SafeTrackApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => BusProvider()..startListening()),
         ChangeNotifierProvider(
-            create: (_) => FavoritesProvider()..loadFromPrefs()),
+          create: (_) {
+            final provider = FavoritesProvider();
+
+            provider.loadFromPrefs();
+
+            return provider;
+          },
+        ),
       ],
       child: MaterialApp(
         title: 'SafeTrack',

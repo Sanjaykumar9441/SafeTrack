@@ -100,33 +100,60 @@ class ApiService {
       final busData = busDoc.data()!;
       busData['id'] = busDoc.id;
 
-      // Get route for this bus
+      // Try busId first
       final routeSnapshot = await _db
           .collection('routes')
           .where('busId', isEqualTo: busId)
           .limit(1)
           .get();
 
-      if (routeSnapshot.docs.isNotEmpty) {
-        final routeData = routeSnapshot.docs.first.data();
+// If no result, try busNumber
+      final routeSnapshotFinal = routeSnapshot.docs.isEmpty
+          ? await _db
+              .collection('routes')
+              .where(
+                'busNumber',
+                isEqualTo: busData['busNumber'],
+              )
+              .limit(1)
+              .get()
+          : routeSnapshot;
+
+      if (routeSnapshotFinal.docs.isNotEmpty) {
+        final routeData = routeSnapshotFinal.docs.first.data();
+
         busData['source'] = routeData['source'];
+
         busData['destination'] = routeData['destination'];
+
         busData['departureTime'] = routeData['departureTime'];
+
         busData['arrivalTime'] = routeData['arrivalTime'];
+
         busData['serviceNumber'] = routeData['serviceNumber'];
+
         busData['intermediateStops'] = routeData['intermediateStops'];
       }
-
       // Get alerts for this bus
       final alertSnapshot = await _db
           .collection('alerts')
           .where('busId', isEqualTo: busId)
-          .orderBy('timestamp', descending: true)
           .limit(10)
           .get();
 
-      busData['totalAlertCount'] = alertSnapshot.docs.length;
-      busData['recentAlerts'] = alertSnapshot.docs.map((doc) {
+// Sort client-side instead
+      final sortedAlerts = alertSnapshot.docs.toList()
+        ..sort((a, b) {
+          final aTs = a.data()['timestamp'];
+          final bTs = b.data()['timestamp'];
+          if (aTs is Timestamp && bTs is Timestamp) {
+            return bTs.compareTo(aTs);
+          }
+          return 0;
+        });
+
+      busData['totalAlertCount'] = sortedAlerts.length;
+      busData['recentAlerts'] = sortedAlerts.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         // Convert Firestore Timestamp to string for display
@@ -244,60 +271,99 @@ class ApiService {
     });
   }
 
-  /// Creates a live data stream from the device's subcollection.
-  /// Firestore path: devices/{deviceId}/readings (MAC-address-based).
   static Stream<Map<String, dynamic>?> liveDataStream(String deviceId) {
     return _db
-        .collection('devices')
-        .doc(deviceId)
-        .collection('readings')
+        .collection('live_data')
+        .where('deviceId', isEqualTo: deviceId)
         .orderBy('timestamp', descending: true)
-        .limit(5)
+        .limit(1)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isEmpty) {
-        return null;
+      if (snapshot.docs.isEmpty) return null;
+      final data = Map<String, dynamic>.from(snapshot.docs.first.data());
+
+      // Convert Timestamp to string
+      if (data['timestamp'] is Timestamp) {
+        data['timestamp'] =
+            (data['timestamp'] as Timestamp).toDate().toIso8601String();
       }
 
-      Map<String, dynamic>? validData;
+      // Normalize lat/lng
+      data['lat'] = data['latitude'] ?? data['lat'] ?? 0;
+      data['lng'] = data['longitude'] ?? data['lng'] ?? 0;
 
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
+      // Normalize smoke
+      final smokeRaw = data['smoke'];
+      data['smokeDetected'] = (smokeRaw is bool)
+          ? smokeRaw
+          : smokeRaw?.toString().toUpperCase() == 'DANGER';
 
-        final hasLocation =
-            data['latitude'] != null && data['longitude'] != null;
+      // Normalize flame
+      final flameRaw = data['flame'] ?? data['flameDetected'];
+      data['flameDetected'] = (flameRaw is bool)
+          ? flameRaw
+          : flameRaw?.toString().toUpperCase() == 'DANGER';
 
-        final hasSpeed = data['speed'] != null;
+      // Normalize tilt
+      final tiltRaw = data['tiltAngle'];
+      data['tiltAngle'] = (tiltRaw is num)
+          ? tiltRaw.toDouble()
+          : (tiltRaw?.toString().toUpperCase() == 'DANGER' ? 40.0 : 0.0);
 
-        if (hasLocation || hasSpeed) {
-          validData = data;
+      data['temperature'] = data['temperature'] ?? 0;
+      data['speed'] = data['speed'] ?? 0;
 
-          break;
+      // ── Mark as last known (not live) if older than 30 seconds ──
+      final tsStr = data['timestamp'];
+      if (tsStr != null) {
+        final ts = DateTime.tryParse(tsStr);
+        if (ts != null) {
+          final age = DateTime.now().difference(ts).inSeconds;
+          data['isLive'] = age < 30; // true = live, false = last known
+          data['dataAgeSeconds'] = age;
         }
+      } else {
+        data['isLive'] = false;
+        data['dataAgeSeconds'] = 999;
       }
 
-      validData ??= snapshot.docs.first.data();
-
-      return _normalizeLiveData(validData);
+      return data;
     });
   }
 
-  /// Creates a live data stream filtering by busId (fallback when deviceId
-  /// is not present on the bus document). Uses collectionGroup to query
-  /// across all devices/{x}/readings subcollections.
   static Stream<Map<String, dynamic>?> liveDataStreamByBusId(String busId) {
     return _db
-        .collectionGroup('readings')
+        .collection('live_data')
         .where('busId', isEqualTo: busId)
         .orderBy('timestamp', descending: true)
         .limit(1)
         .snapshots()
         .map((snapshot) {
       if (snapshot.docs.isEmpty) return null;
+      final data = Map<String, dynamic>.from(snapshot.docs.first.data());
 
-      final data = snapshot.docs.first.data();
+      if (data['timestamp'] is Timestamp) {
+        data['timestamp'] =
+            (data['timestamp'] as Timestamp).toDate().toIso8601String();
+      }
 
-      return _normalizeLiveData(data);
+      data['lat'] = data['latitude'] ?? data['lat'] ?? 0;
+      data['lng'] = data['longitude'] ?? data['lng'] ?? 0;
+
+      final tsStr = data['timestamp'];
+      if (tsStr != null) {
+        final ts = DateTime.tryParse(tsStr);
+        if (ts != null) {
+          final age = DateTime.now().difference(ts).inSeconds;
+          data['isLive'] = age < 30;
+          data['dataAgeSeconds'] = age;
+        }
+      } else {
+        data['isLive'] = false;
+        data['dataAgeSeconds'] = 999;
+      }
+
+      return data;
     });
   }
 

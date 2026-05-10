@@ -28,13 +28,13 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Stream<List<Bus>> _busesStream;
 
   @override
-  @override
   void initState() {
     super.initState();
 
     _busesStream = ApiService.busesStream();
   }
 
+  @override
   void dispose() {
     _vehicleNumberController.dispose();
     _fromController.dispose();

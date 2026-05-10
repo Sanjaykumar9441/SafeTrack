@@ -40,7 +40,6 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
   GoogleMapController? _mapController;
   LatLng? _busPosition;
   int _currentStopIndex = -1;
-  int? _liveAvailableSeats;
   int _occupiedSeats = 0;
   String _seatStatus = 'EMPTY';
   final GlobalKey _mapRepaintKey = GlobalKey();
@@ -63,6 +62,7 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     super.dispose();
   }
 
+  // ─── AI Prediction Banner ───────────────────────────────────────────────────
   Widget _buildAiPredictionBanner() {
     if (_loadingPrediction && _aiPrediction == null) {
       return Container(
@@ -148,6 +148,7 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     );
   }
 
+  // ─── Favorite ───────────────────────────────────────────────────────────────
   Future<void> _loadFavorite() async {
     final prefs = await SharedPreferences.getInstance();
     final favs = prefs.getStringList('favorite_buses') ?? [];
@@ -174,6 +175,7 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     );
   }
 
+  // ─── AI Prediction ──────────────────────────────────────────────────────────
   Future<void> _loadAiPrediction(Map<String, dynamic> liveData) async {
     if (_loadingPrediction) return;
     setState(() => _loadingPrediction = true);
@@ -204,6 +206,7 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     return double.tryParse(value.toString()) ?? 0.0;
   }
 
+  // ─── Load Bus Detail ────────────────────────────────────────────────────────
   Future<void> _loadBusDetail() async {
     setState(() {
       loading = true;
@@ -211,26 +214,51 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     });
     try {
       final data = await ApiService.getBusDetail(widget.busId);
-      if (mounted) {
-        final deviceId = data['deviceId'] as String?;
+      if (!mounted) return;
 
-        setState(() {
-          busDetail = data;
-          loading = false;
+      // Single deviceId — no duplicate declaration
+      final deviceId = data['deviceId'] as String?;
 
-          // Default position
-          final lastLat = _toDouble(data['currentLatitude']);
+      setState(() {
+        busDetail = data;
+        loading = false;
 
-          final lastLng = _toDouble(data['currentLongitude']);
+        final lastLat = _toDouble(data['currentLatitude']);
+        final lastLng = _toDouble(data['currentLongitude']);
 
-          _busPosition = (lastLat != 0 && lastLng != 0)
-              ? LatLng(lastLat, lastLng)
-              : const LatLng(16.98, 82.23);
+        _busPosition = (lastLat != 0 && lastLng != 0)
+            ? LatLng(lastLat, lastLng)
+            : const LatLng(16.98, 82.23);
 
-          // Start stream immediately
-          _liveStream = (deviceId != null && deviceId.isNotEmpty)
-              ? ApiService.liveDataStream(deviceId)
-              : ApiService.liveDataStreamByBusId(widget.busId);
+        _liveStream = (deviceId != null && deviceId.isNotEmpty)
+            ? ApiService.liveDataStream(deviceId)
+            : ApiService.liveDataStreamByBusId(widget.busId);
+      });
+
+      // Immediately fetch last live_data to trigger AI prediction
+      if (deviceId != null && deviceId.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('live_data')
+            .where('deviceId', isEqualTo: deviceId)
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get()
+            .then((snap) {
+          if (snap.docs.isNotEmpty && mounted) {
+            _loadAiPrediction(snap.docs.first.data());
+          }
+        }).catchError((_) {
+          // Firestore index not ready — fallback without orderBy
+          FirebaseFirestore.instance
+              .collection('live_data')
+              .where('deviceId', isEqualTo: deviceId)
+              .limit(1)
+              .get()
+              .then((snap) {
+            if (snap.docs.isNotEmpty && mounted) {
+              _loadAiPrediction(snap.docs.first.data());
+            }
+          });
         });
       }
     } catch (e) {
@@ -243,6 +271,7 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     }
   }
 
+  // ─── Helpers ────────────────────────────────────────────────────────────────
   double _toDouble(dynamic v) {
     if (v == null) return 0.0;
     if (v is double) return v;
@@ -250,57 +279,62 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     return double.tryParse(v.toString()) ?? 0.0;
   }
 
-  double _distance(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
+  double _distance(double lat1, double lon1, double lat2, double lon2) {
     final dx = lat1 - lat2;
     final dy = lon1 - lon2;
-
     return (dx * dx) + (dy * dy);
   }
 
   void _detectCurrentStop() {
-    if (busDetail == null || _busPosition == null) {
-      return;
-    }
-
-    final stops = busDetail!['intermediateStops'] as List<dynamic>;
+    if (busDetail == null || _busPosition == null) return;
+    final stops = busDetail!['intermediateStops'];
+    if (stops == null || stops is! List) return;
 
     double minDistance = double.infinity;
-
     int nearestIndex = -1;
 
     for (int i = 0; i < stops.length; i++) {
       final stop = stops[i];
-
       final lat = (stop['latitude'] ?? 0).toDouble();
-
       final lng = (stop['longitude'] ?? 0).toDouble();
-
       final dist = _distance(
         _busPosition!.latitude,
         _busPosition!.longitude,
         lat,
         lng,
       );
-
       if (dist < minDistance) {
         minDistance = dist;
-
         nearestIndex = i;
       }
     }
 
-    if (mounted) {
-      setState(() {
-        _currentStopIndex = nearestIndex;
-      });
+    if (mounted) setState(() => _currentStopIndex = nearestIndex);
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'RUNNING':
+        return AppTheme.safeColor;
+      case 'MAINTENANCE':
+        return AppTheme.warningColor;
+      default:
+        return Colors.grey;
     }
   }
 
+  Color _getSafetyColor(String safety) {
+    switch (safety) {
+      case 'WARNING':
+        return AppTheme.warningColor;
+      case 'DANGER':
+        return AppTheme.dangerColor;
+      default:
+        return AppTheme.safeColor;
+    }
+  }
+
+  // ─── Share ──────────────────────────────────────────────────────────────────
   String _buildSharePayload() {
     final busNumber = busDetail?['busNumber'] ?? '';
     final busName = busDetail?['busName'] ?? '';
@@ -312,12 +346,12 @@ class _BusDetailScreenState extends State<BusDetailScreen> {
     final avail = busDetail?['availableSeats'] ?? 0;
     final total = busDetail?['seatCapacity'] ?? 0;
 
-    return '''🚌 SafeTrack — Bus Update
-Bus: $busName ($busNumber)
-Route: $service | $from → $to
-Status: $status • $safety
-Seats: $avail available of $total
-Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] : '1800-XXX-XXXX'}''';
+    return '🚌 SafeTrack — Bus Update\n'
+        'Bus: $busName ($busNumber)\n'
+        'Route: $service | $from → $to\n'
+        'Status: $status • $safety\n'
+        'Seats: $avail available of $total\n'
+        'Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] : '1800-XXX-XXXX'}';
   }
 
   void _openShareSheet() {
@@ -450,28 +484,7 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'RUNNING':
-        return AppTheme.safeColor;
-      case 'MAINTENANCE':
-        return AppTheme.warningColor;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Color _getSafetyColor(String safety) {
-    switch (safety) {
-      case 'WARNING':
-        return AppTheme.warningColor;
-      case 'DANGER':
-        return AppTheme.dangerColor;
-      default:
-        return AppTheme.safeColor;
-    }
-  }
-
+  // ─── BUILD ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -524,15 +537,14 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                       key: _mapRepaintKey,
                       child: RefreshIndicator(
                         color: AppTheme.primaryColor,
-                        onRefresh: () async {
-                          await _loadBusDetail();
-                        },
+                        onRefresh: () async => _loadBusDetail(),
                         child: SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // ── Header Card ──────────────────────────────
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(20),
@@ -601,6 +613,8 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                 ),
                               ),
                               const SizedBox(height: 16),
+
+                              // ── Info Cards ───────────────────────────────
                               Row(
                                 children: [
                                   Expanded(
@@ -624,7 +638,12 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 16),
+
+                              // ── AI Prediction ─────────────────────────────
                               _buildAiPredictionBanner(),
+
+                              // ── Live Location ─────────────────────────────
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -658,7 +677,12 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                   ),
                                 ],
                               ),
+
+                              // ── Map Card ──────────────────────────────────
+                              _buildMapCard(),
                               const SizedBox(height: 16),
+
+                              // ── Route Information ─────────────────────────
                               if (busDetail!['source'] != null) ...[
                                 _buildSectionTitle('Route Information'),
                                 Container(
@@ -731,8 +755,10 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                     ],
                                   ),
                                 ),
+                                const SizedBox(height: 16),
                               ],
-                              const SizedBox(height: 16),
+
+                              // ── Safety History ────────────────────────────
                               _buildSectionTitle('Safety History'),
                               Container(
                                 width: double.infinity,
@@ -830,11 +856,6 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              if (_busPosition != null) ...[
-                                _buildMapCard(),
-                                const SizedBox(height: 16),
-                              ],
-                              const SizedBox(height: 8),
                             ],
                           ),
                         ),
@@ -843,6 +864,7 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
     );
   }
 
+  // ─── Map Card ───────────────────────────────────────────────────────────────
   Widget _buildMapCard() {
     return Container(
       height: 240,
@@ -862,21 +884,32 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
             ? StreamBuilder<Map<String, dynamic>?>(
                 stream: _liveStream,
                 builder: (context, snapshot) {
+                  // ── Parse live status ──
+                  final isLive = snapshot.data?['isLive'] as bool? ?? false;
+                  final ageSeconds =
+                      snapshot.data?['dataAgeSeconds'] as int? ?? 0;
+                  final ageText = ageSeconds < 60
+                      ? '${ageSeconds}s ago'
+                      : '${(ageSeconds / 60).floor()}m ago';
+
                   if (snapshot.hasData && snapshot.data != null) {
+                    // Update seat status
                     if (snapshot.data!['seatStatus'] != null) {
                       _seatStatus = snapshot.data!['seatStatus'].toString();
-
                       _occupiedSeats = _seatStatus == 'OCCUPIED' ? 1 : 0;
                     }
-                    final lat = _toDouble(snapshot.data!['latitude']);
-                    final lng = _toDouble(snapshot.data!['longitude']);
 
-                    // Trigger AI prediction when new live data arrives
+                    // Update map position — check both lat/latitude keys
+                    final lat = _toDouble(
+                        snapshot.data!['latitude'] ?? snapshot.data!['lat']);
+                    final lng = _toDouble(
+                        snapshot.data!['longitude'] ?? snapshot.data!['lng']);
+
+                    // Trigger AI on new data
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       _loadAiPrediction(snapshot.data!);
                     });
 
-                    // Update map position if coordinates are valid
                     if (lat != 0 && lng != 0) {
                       final newPos = LatLng(lat, lng);
                       if (newPos != _busPosition) {
@@ -892,7 +925,57 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                       }
                     }
                   }
-                  return _googleMap();
+
+                  // ── Stack: map + live badge ──
+                  return Stack(
+                    children: [
+                      _googleMap(),
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                isLive ? Colors.green[50] : Colors.orange[50],
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isLive ? Colors.green : Colors.orange,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isLive ? Colors.green : Colors.orange,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isLive
+                                    ? '🟢 Live Data'
+                                    : '🟡 Last Known · $ageText',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isLive
+                                      ? Colors.green[700]
+                                      : Colors.orange[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
                 },
               )
             : _googleMap(),
@@ -900,6 +983,7 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
     );
   }
 
+  // ─── Google Map ─────────────────────────────────────────────────────────────
   Widget _googleMap() {
     final position = _busPosition ?? const LatLng(17.5937, 82.2600);
     return GoogleMap(
@@ -921,6 +1005,7 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
     );
   }
 
+  // ─── Reusable Widgets ───────────────────────────────────────────────────────
   Widget _buildStatusChip(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -1009,10 +1094,7 @@ Helpline: ${busDetail?['helpline']?.isNotEmpty == true ? busDetail!['helpline'] 
                         : isLast
                             ? AppTheme.dangerColor
                             : AppTheme.primaryColor,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2,
-                ),
+                border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.15),
