@@ -32,6 +32,7 @@ const DriverTerminal = () => {
     const [rerouteLoading, setRerouteLoading] = useState(false);
     const [time, setTime] = useState(new Date());
     const [alerts, setAlerts] = useState([]);
+    const [driverStatus, setDriverStatus] = useState('ON_ROUTE');
 
     const sosRef = useRef(null);
 
@@ -74,7 +75,28 @@ const DriverTerminal = () => {
             }
         });
         return () => unsub();
-    }, [bus]);
+    },
+        useEffect(() => {
+            if (!bus) return;
+
+            const q = query(
+                collection(db, 'buses'),
+                where('__name__', '==', bus.id),
+                limit(1)
+            );
+
+            const unsub = onSnapshot(q, snap => {
+                if (!snap.empty) {
+                    const data = snap.docs[0].data();
+
+                    if (data.driverStatus) {
+                        setDriverStatus(data.driverStatus);
+                    }
+                }
+            });
+
+            return () => unsub();
+        }), [bus]);
 
     // Waiting passengers at next stop (simulated from a
     // 'stop_waiting' Firestore collection — admin can update this)
@@ -232,6 +254,21 @@ Next Stop: ${nextStop?.name || 'N/A'}
     const handleLogout = async () => {
         await logout();
         navigate('/login');
+    };
+
+    const updateDriverStatus = async (status) => {
+        try {
+            setDriverStatus(status);
+
+            await updateDoc(doc(db, 'buses', bus.id), {
+                driverStatus: status,
+                updatedAt: serverTimestamp(),
+            });
+
+            toast.success(`Driver status updated: ${status}`);
+        } catch (err) {
+            toast.error('Failed to update status');
+        }
     };
 
     // ── Helpers ───────────────────────────────────────────────
@@ -414,6 +451,44 @@ Next Stop: ${nextStop?.name || 'N/A'}
                             ? 'Tap CANCEL when safe'
                             : 'Hold in emergency only'}
                     </p>
+                </div>
+            </div>
+
+            {/* ── Driver Status Panel ── */}
+            <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800 mb-4">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-300 text-sm uppercase tracking-wide">
+                        Driver Status
+                    </h3>
+
+                    <span className="text-yellow-400 text-sm font-bold">
+                        {driverStatus}
+                    </span>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+
+                    <button
+                        onClick={() => updateDriverStatus('ARRIVED')}
+                        className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                    >
+                        Arrived
+                    </button>
+
+                    <button
+                        onClick={() => updateDriverStatus('BOARDING')}
+                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                    >
+                        Boarding
+                    </button>
+
+                    <button
+                        onClick={() => updateDriverStatus('DELAYED')}
+                        className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                    >
+                        Delayed
+                    </button>
+
                 </div>
             </div>
 

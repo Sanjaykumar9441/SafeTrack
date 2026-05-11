@@ -14,7 +14,7 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
                                       (passenger-facing)              (fleet management)
 ```
 
-## Modules
+## Modulesx
 
 ### 1. FPGA Sensor Core (`/fpga_tang_nano_9k`)
 - **Gowin Tang Nano 9K** running Verilog HDL.
@@ -46,7 +46,7 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
 - Route search (source-to-destination, service number, vehicle number).
 - Nearby bus stops with GPS proximity.
 - AI-powered safety assistant using Groq API and LLaMA 3 via Firebase Cloud Functions.
--The RECORD_AUDIO permission is exclusively used for optional speech-to-text interaction within the AI Safety Chat module and is not used for      continuous audio monitoring or surveillance.
+- The RECORD_AUDIO permission is exclusively used for optional speech-to-text interaction within the AI Safety Chat module and is not used for continuous audio monitoring or surveillance.
 - Safety alerts with sensor data visualization.
 
 #### Key Files
@@ -117,6 +117,10 @@ The SafeTrack system was experimentally verified across FPGA, IoT, cloud, and ap
 | Driver Terminal Communication | Successful |
 | Seat Occupancy Detection | Successful |
 | Cloud Alert Propagation | Successful |
+
+### Driver Terminal Validation
+
+The dedicated Driver Terminal module was experimentally validated with realtime Firestore synchronization. Driver-side operational controls including SOS emergency override, passenger waiting visualization, route guidance, next-stop display, and driver status updates were successfully synchronized between the React dashboard and Firebase backend in realtime.
 
 ### Validation Summary
 
@@ -197,8 +201,11 @@ The architecture is optimized for prototype-scale deployment and realtime smart 
 | Mobile     | Flutter, Provider, Cloud Firestore SDK             |
 | Admin      | React, Tailwind CSS, react-hot-toast               |
 | AI         | Groq API + LLaMA 3                                 |
-The project initially evaluated Gemini API integration during the design phase, but the final deployed implementation uses Groq API with the LLaMA 3 model for lower latency and simpler Firebase Cloud Functions integration.
 | Alerts     | Twilio (voice), Slack Webhooks, Telegram Bot API   |
+
+### AI Model Clarification
+
+The project initially evaluated Gemini API integration during the early design phase. However, the final deployed implementation uses the Groq API with the LLaMA 3 model due to lower latency, simpler Firebase Cloud Functions integration, and improved realtime conversational performance for the AI Safety Chat module.
 
 ## Setup
 
