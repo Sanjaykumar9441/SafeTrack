@@ -38,6 +38,70 @@ Receives sensor telemetry from the FPGA over UART, reads GPS from a NEO-6M modul
 | 6    | Emergency   | 0 = no, 1 = yes             |
 | 7    | End         | `\n` (0x0A)                 |
 
+## ESP32 Firmware Workflow
+
+The ESP32 acts as the IoT gateway between the FPGA hardware layer and the cloud infrastructure.
+
+### Internal Data Flow
+
+FPGA UART Telemetry
+        ↓
+ESP32 UART Packet Parser
+        ↓
+GPS Coordinate Acquisition
+        ↓
+JSON Payload Formatting
+        ↓
+Firebase REST API Upload
+        ↓
+React Dashboard + Flutter App Synchronization
+
+### Firmware Responsibilities
+
+- Receives binary telemetry packets from FPGA
+- Parses safety sensor data
+- Reads real-time GPS coordinates
+- Merges GPS and FPGA telemetry
+- Formats structured JSON payloads
+- Uploads live telemetry to Firebase Firestore
+- Enables real-time monitoring in dashboard and mobile app
+
+## Example Firebase JSON Payload
+
+```json
+{
+  "bus_id": "BUS_101",
+  "latitude": 17.3850,
+  "longitude": 78.4867,
+  "flame": false,
+  "smoke": false,
+  "crash": true,
+  "seat_count": 3,
+  "emergency": true,
+  "timestamp": "2026-05-11T10:15:00Z"
+}
+```
+## Experimental Validation
+
+| Test | Result |
+|------|---------|
+| UART Packet Reception | Successful |
+| GPS Coordinate Acquisition | Successful |
+| Firebase Synchronization | Successful |
+| Real-time Dashboard Monitoring | Successful |
+| Flutter Mobile App Sync | Successful |
+| Emergency Alert Upload | Successful |
+| Seat Occupancy Monitoring | Successful |
+| GSM Emergency SMS | Successful |
+
+### Validation Summary
+
+- FPGA telemetry was successfully transmitted to the ESP32 over UART.
+- GPS coordinates were acquired and merged with sensor telemetry.
+- JSON payloads were uploaded successfully to Firebase Firestore.
+- Dashboard and mobile applications updated in real time.
+- Emergency alerts were propagated successfully across the system.
+
 ## ESP32 Firmware Location
 
 The ESP32 cloud communication firmware is located at:
