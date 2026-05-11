@@ -42,7 +42,7 @@ class Bus {
       busName: json['busName'] ?? '',
       source: json['source'] ?? '',
       destination: json['destination'] ?? '',
-      intermediateStops: json['intermediateStops'] ?? [],
+      intermediateStops: (json['intermediateStops'] as List?) ?? [],
       seatCapacity: _toInt(json['seatCapacity']),
       availableSeats: _toInt(json['availableSeats']),
       status: json['status'] ?? 'STOPPED',
@@ -52,7 +52,7 @@ class Bus {
       currentLatitude: _toDouble(json['currentLatitude']),
       currentLongitude: _toDouble(json['currentLongitude']),
       temperature: _toDouble(json['temperature']),
-      deviceId: json['deviceId'],
+      deviceId: json['deviceId']?.toString(),
     );
   }
 

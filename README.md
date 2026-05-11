@@ -49,6 +49,22 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
 - The RECORD_AUDIO permission is exclusively used for optional speech-to-text interaction within the AI Safety Chat module and is not used for continuous audio monitoring or surveillance.
 - Safety alerts with sensor data visualization.
 
+### Firebase Configuration Security
+
+The Flutter application does not hardcode Firebase credentials directly in source files. Firebase configuration values are injected securely at build time using Flutter `--dart-define` environment variables and accessed through `String.fromEnvironment(...)` inside `firebase_options.dart`.
+
+### Runtime Stability & Null Safety
+
+The Flutter application implements defensive Firestore parsing with explicit fallback values (`??`) and typed normalization helpers (`_toInt`, `_toDouble`) to safely handle incomplete realtime telemetry uploads, delayed GPS synchronization, and partially available sensor data without runtime crashes.
+
+### GPS Permission Handling
+
+The Nearby Stops module implements graceful runtime GPS permission handling using the Geolocator package. If location services are disabled or permission is denied, the application presents a user-friendly fallback interface with retry functionality instead of crashing or blocking the UI.
+
+### Frontend Runtime Resilience
+
+The React administrative dashboard implements realtime loading states, asynchronous Firestore error handling, toast-based operational notifications, and a global React Error Boundary to prevent complete dashboard failure during unexpected runtime exceptions or network instability.
+
 #### Key Files
 | Path | Purpose |
 |------|---------|

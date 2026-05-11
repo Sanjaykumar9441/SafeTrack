@@ -114,12 +114,30 @@ It handles:
 - Firebase REST uploads
 - emergency telemetry forwarding
 
+## UART Buffer Management
+
+The ESP32 processes FPGA telemetry UART and GPS UART independently using non-blocking serial handlers.
+
+To prevent UART buffer overflow:
+- RX buffer sizes are increased to 1024 bytes
+- UART reads are processed continuously in the main loop
+- CRLF packet framing is used for FPGA telemetry
+- GPS NMEA parsing uses incremental character decoding
+- Blocking delays are avoided during Firebase communication
+
 ### Dependencies (Arduino IDE)
 
 - `ArduinoJson`
 - `TinyGPSPlus`
 - WiFi (built-in ESP32)
 - HTTPClient (built-in ESP32)
+
+## ESP32 Verification
+
+- UART packet parsing verified
+- GPS NMEA decoding validated
+- Firebase HTTPS upload tested
+- Buffer overflow mitigation added using 1024-byte UART buffers
 
 ### Configuration
 

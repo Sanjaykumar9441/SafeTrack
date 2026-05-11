@@ -14,6 +14,7 @@ import AlertsPanel from './components/Alerts/AlertsPanel';
 import LiveDataPanel from './components/LiveData/LiveDataPanel';
 import DriverBusSelect from './components/Driver/DriverBusSelect';
 import DriverTerminal from './components/Driver/DriverTerminal';
+import ErrorBoundary from './components/Common/ErrorBoundary';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -106,12 +107,14 @@ const DriverRoute = ({ children }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Toaster position="top-right" />
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <Toaster position="top-right" />
+          <AppRoutes />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
