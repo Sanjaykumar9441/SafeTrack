@@ -100,6 +100,30 @@ Implemented features:
 * Last updated telemetry timestamps
 * Safety status classification (SAFE/WARNING/DANGER)
 
+## Experimental Validation
+
+The SafeTrack system was experimentally verified across FPGA, IoT, cloud, and application layers.
+
+| Test | Result |
+|------|---------|
+| GPS Tracking | Successful |
+| Fire Detection | Successful |
+| Smoke Detection | Successful |
+| Crash Detection | Successful |
+| Firebase Sync | Successful |
+| GSM Emergency SMS | Successful |
+| Real-time Dashboard Monitoring | Successful |
+| Driver Terminal Communication | Successful |
+| Seat Occupancy Detection | Successful |
+| Cloud Alert Propagation | Successful |
+
+### Validation Summary
+
+- Real-time GPS data was successfully transmitted from the ESP32 gateway to Firebase.
+- Emergency events generated immediate FPGA-triggered GSM alerts.
+- Firebase synchronization updated both the React dashboard and Flutter application in real time.
+- Driver terminal communication was validated successfully.
+- Seat occupancy changes were correctly reflected in the cloud dashboard.
 
 #### Key Files
 | Path | Purpose |
