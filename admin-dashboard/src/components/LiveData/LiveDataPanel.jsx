@@ -9,7 +9,6 @@ const LiveDataPanel = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Query across all devices/{deviceId}/readings subcollections (MAC-address-based paths)
     const liveQuery = query(collectionGroup(db, 'readings'), orderBy('timestamp', 'desc'), limit(20));
     const unsubscribe = onSnapshot(liveQuery, (snapshot) => {
       setLiveData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));

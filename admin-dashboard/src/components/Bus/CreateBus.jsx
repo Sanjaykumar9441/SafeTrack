@@ -8,7 +8,6 @@ import toast from 'react-hot-toast';
 
 const CreateBus = () => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
   const location = useLocation();
   const editBus = location.state?.editBus || null;
   const isEditing = !!editBus;

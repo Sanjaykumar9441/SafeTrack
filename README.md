@@ -45,7 +45,8 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
 - Real-time bus tracking with live GPS map.
 - Route search (source-to-destination, service number, vehicle number).
 - Nearby bus stops with GPS proximity.
-- AI-powered safety chat (Groq/LLaMA via Firebase Cloud Functions)
+- AI-powered safety assistant using Groq API and LLaMA 3 via Firebase Cloud Functions.
+-The RECORD_AUDIO permission is exclusively used for optional speech-to-text interaction within the AI Safety Chat module and is not used for      continuous audio monitoring or surveillance.
 - Safety alerts with sensor data visualization.
 
 #### Key Files
@@ -59,7 +60,7 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
 | `lib/screens/live_tracking_screen.dart` | Real-time GPS map tracking |
 | `lib/screens/buses_screen.dart` | Browse all buses |
 | `lib/screens/ai_home_screen.dart` | AI safety assistant home |
-| `lib/screens/ai_safety_chat_screen.dart` | AI chat interface (Gemini/Groq) |
+| `lib/screens/ai_safety_chat_screen.dart` | AI chat interface (Groq/LLaMA) |
 | `lib/screens/nearby_stops_screen.dart` | GPS-based nearby bus stop finder |
 | `lib/screens/search_results_screen.dart` | Search results for routes/buses |
 | `lib/screens/contact_screen.dart` | Contact & about page |
@@ -160,11 +161,31 @@ The SafeTrack system was experimentally verified across FPGA, IoT, cloud, and ap
 
 ## Firestore Architecture
 
-The project uses a device-oriented Firestore hierarchy:
+The SafeTrack system currently uses a flat Firestore collection structure for realtime monitoring and simplified cloud synchronization.
 
-devices/{deviceId}/readings
+### Main Collections
 
-Each ESP32 gateway pushes realtime telemetry into its own readings subcollection, improving scalability, isolation, and device-specific querying.
+| Collection | Purpose |
+|------------|---------|
+| `buses` | Stores registered bus details |
+| `routes` | Stores source, destination, and stop information |
+| `live_data` | Stores realtime telemetry from ESP32 devices |
+| `alerts` | Stores emergency and safety alerts |
+| `users` | Stores admin and driver authentication roles |
+
+### Architecture Flow
+
+ESP32 devices transmit realtime telemetry data to Firebase Firestore through HTTPS REST requests. The Flutter mobile application and React admin dashboard subscribe to Firestore realtime streams for live synchronization.
+
+### Benefits of Current Structure
+
+- Simpler realtime querying
+- Faster prototype development
+- Easy dashboard integration
+- Efficient Firebase realtime listeners
+- Simplified CRUD operations
+
+The architecture is optimized for prototype-scale deployment and realtime smart transportation monitoring.
 
 ## Tech Stack
 
@@ -176,6 +197,7 @@ Each ESP32 gateway pushes realtime telemetry into its own readings subcollection
 | Mobile     | Flutter, Provider, Cloud Firestore SDK             |
 | Admin      | React, Tailwind CSS, react-hot-toast               |
 | AI         | Groq API + LLaMA 3                                 |
+The project initially evaluated Gemini API integration during the design phase, but the final deployed implementation uses Groq API with the LLaMA 3 model for lower latency and simpler Firebase Cloud Functions integration.
 | Alerts     | Twilio (voice), Slack Webhooks, Telegram Bot API   |
 
 ## Setup
@@ -236,4 +258,4 @@ Requires a `.env` file in the project root with `FIREBASE_*` variables.
 
 ## License
 
-This project was developed as part of a university capstone project at Aditya University, ECE Department (2026).
+This project was developed as part of a project Space 2026 at Aditya University, ECE Department (2026).

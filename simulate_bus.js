@@ -44,7 +44,6 @@ async function pushSimulatedData() {
   };
 
   try {
-    // Write to devices/{deviceId}/readings subcollection (MAC-address-based path)
     const deviceRef = doc(db, 'devices', DEVICE_ID);
     await addDoc(collection(deviceRef, 'readings'), sensorData);
     console.log(`[${new Date().toLocaleTimeString()}] Sent: ${lat.toFixed(4)}, ${lng.toFixed(4)}, ${sensorData.temperature.toFixed(1)}C`);
