@@ -130,7 +130,7 @@ $userMessage
 
       return 'No response from AI.';
     } catch (e) {
-      print('Firebase Gemini Error: $e');
+      print('Firebase Groq API with LLaMA 3 Error: $e');
 
       return 'Connection error. Please try again.';
     }

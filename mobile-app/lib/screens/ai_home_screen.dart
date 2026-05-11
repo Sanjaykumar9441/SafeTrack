@@ -44,7 +44,7 @@ class _AiHomeScreenState extends State<AiHomeScreen> {
     _messages.add({
       'role': 'assistant',
       'text':
-          '👋 Hello! I\'m SafeTrack AI, powered by Gemini.\n\nI can help you with bus safety information, how to track buses, understand alerts, and more. What would you like to know?',
+          '👋 Hello! I\'m SafeTrack AI, powered by Groq API with LLaMA 3 .\n\nI can help you with bus safety information, how to track buses, understand alerts, and more. What would you like to know?',
     });
   }
 

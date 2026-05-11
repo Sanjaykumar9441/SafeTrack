@@ -45,7 +45,7 @@ Tang Nano 9K (FPGA)  --UART-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
 - Real-time bus tracking with live GPS map.
 - Route search (source-to-destination, service number, vehicle number).
 - Nearby bus stops with GPS proximity.
-- AI-powered safety chat (Gemini via Firebase Cloud Functions).
+- AI-powered safety chat (Groq/LLaMA via Firebase Cloud Functions)
 - Safety alerts with sensor data visualization.
 
 #### Key Files
@@ -119,7 +119,6 @@ Implemented features:
 | `src/components/Alerts/AlertsPanel.jsx` | Alert management with auto-dispatch |
 | `src/components/Alerts/AlertCard.jsx` | Individual alert card |
 | `src/components/LiveData/LiveDataPanel.jsx` | Real-time IoT device data viewer |
-| `src/components/Driver/DriverLogin.jsx` | Driver PIN-based login |
 | `src/components/Driver/DriverBusSelect.jsx` | Driver bus assignment screen |
 | `src/components/Driver/DriverTerminal.jsx` | Driver dashboard with SOS and trip controls |
 | `src/components/Layout/DashboardLayout.jsx` | Dashboard layout wrapper |
@@ -152,7 +151,7 @@ Each ESP32 gateway pushes realtime telemetry into its own readings subcollection
 | Backend    | Firebase Firestore, Cloud Functions (Node.js)      |
 | Mobile     | Flutter, Provider, Cloud Firestore SDK             |
 | Admin      | React, Tailwind CSS, react-hot-toast               |
-| AI         | Google Gemini 1.5 Flash (via Groq)                 |
+| AI         | Groq API + LLaMA 3                                 |
 | Alerts     | Twilio (voice), Slack Webhooks, Telegram Bot API   |
 
 ## Setup

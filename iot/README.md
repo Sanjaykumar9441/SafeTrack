@@ -38,6 +38,18 @@ Receives sensor telemetry from the FPGA over UART, reads GPS from a NEO-6M modul
 | 6    | Emergency   | 0 = no, 1 = yes             |
 | 7    | End         | `\n` (0x0A)                 |
 
+## ESP32 Firmware Location
+
+The ESP32 cloud communication firmware is located at:
+
+/iot/esp32_safetrack.ino
+
+It handles:
+- UART communication with FPGA
+- GPS acquisition
+- Firebase REST uploads
+- emergency telemetry forwarding
+
 ### Dependencies (Arduino IDE)
 
 - `ArduinoJson`

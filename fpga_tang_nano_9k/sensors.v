@@ -204,12 +204,12 @@ assign emergency_flag =
 reg emergency_latched = 0;
 
 reg [3:0]  gsm_state = 0;
-reg [31:0] gsm_timer = 0;
+reg [63:0] gsm_timer = 0;
 
 reg [7:0] gsm_char_idx = 0;
 reg [7:0] gsm_msg_len = 0;
 
-reg [7:0] gsm_msg [0:63];
+reg [7:0] gsm_msg [0:127];
 
 reg gsm_send_trigger = 0;
 
