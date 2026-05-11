@@ -56,47 +56,58 @@ const DriverTerminal = () => {
         });
         return () => unsub();
     }, [bus]);
-
     // Route data
     useEffect(() => {
         if (!bus) return;
+
         const q = query(
             collection(db, 'routes'),
             where('busId', '==', bus.id),
             limit(1)
         );
+
         const unsub = onSnapshot(q, snap => {
             if (!snap.empty) {
-                const route = { id: snap.docs[0].id, ...snap.docs[0].data() };
+                const route = {
+                    id: snap.docs[0].id,
+                    ...snap.docs[0].data()
+                };
+
                 setRouteData(route);
-                // Find next upcoming stop
+
                 const stops = route.intermediateStops || [];
-                if (stops.length > 0) setNextStop(stops[0]);
+
+                if (stops.length > 0) {
+                    setNextStop(stops[0]);
+                }
             }
         });
+
         return () => unsub();
-    },
-        useEffect(() => {
-            if (!bus) return;
+    }, [bus]);
 
-            const q = query(
-                collection(db, 'buses'),
-                where('__name__', '==', bus.id),
-                limit(1)
-            );
+    // Driver status listener
+    useEffect(() => {
+        if (!bus) return;
 
-            const unsub = onSnapshot(q, snap => {
-                if (!snap.empty) {
-                    const data = snap.docs[0].data();
+        const q = query(
+            collection(db, 'buses'),
+            where('__name__', '==', bus.id),
+            limit(1)
+        );
 
-                    if (data.driverStatus) {
-                        setDriverStatus(data.driverStatus);
-                    }
+        const unsub = onSnapshot(q, snap => {
+            if (!snap.empty) {
+                const data = snap.docs[0].data();
+
+                if (data.driverStatus) {
+                    setDriverStatus(data.driverStatus);
                 }
-            });
+            }
+        });
 
-            return () => unsub();
-        }), [bus]);
+        return () => unsub();
+    }, [bus]);
 
     // Waiting passengers at next stop (simulated from a
     // 'stop_waiting' Firestore collection — admin can update this)
@@ -231,14 +242,7 @@ const DriverTerminal = () => {
         setRerouteLoading(true);
         setRerouteMsg('');
         try {
-            const context = `
-You are a bus route advisor for SafeTrack.
-Bus: ${bus?.busNumber} (${bus?.busName})
-Current Route: ${routeData?.source || 'N/A'} → ${routeData?.destination || 'N/A'}
-Stops: ${(routeData?.intermediateStops || []).map(s => s.name).join(' → ')}
-Current Speed: ${liveData?.speed || 0} km/h
-Next Stop: ${nextStop?.name || 'N/A'}
-`;
+
             setRerouteMsg(
                 'Traffic ahead may be slow. Continue on the current route and maintain safe speed.'
             );
@@ -271,13 +275,7 @@ Next Stop: ${nextStop?.name || 'N/A'}
         }
     };
 
-    // ── Helpers ───────────────────────────────────────────────
-
-    const safetyColor = () => {
-        const s = alerts.length > 0 ? 'DANGER' : 'SAFE';
-        if (s === 'DANGER') return 'text-red-400';
-        return 'text-green-400';
-    };
+    // ── Helpers ──────────────────────────────────────────────
 
     const formatTime = (d) =>
         d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
