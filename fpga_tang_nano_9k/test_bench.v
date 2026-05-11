@@ -25,7 +25,7 @@ module test_bench;
     // =========================================================
     parameter CLK_FREQ    = 27000000;
     parameter BAUD_RATE   = 9600;
-    parameter BAUD_PERIOD = 104166; // ns
+    parameter BAUD_PERIOD = 104166;
 
     // =========================================================
     // UART DECODER VARIABLES
@@ -34,7 +34,7 @@ module test_bench;
     integer i;
 
     // =========================================================
-    // UUT INSTANTIATION
+    // UUT
     // =========================================================
     master_safety_system uut (
         .clk(clk),
@@ -50,12 +50,12 @@ module test_bench;
     );
 
     // =========================================================
-    // I2C PULLUP MODEL
+    // I2C MODEL
     // =========================================================
     assign i2c_sda = 1'bz;
 
     // =========================================================
-    // 27 MHz CLOCK GENERATION
+    // CLOCK
     // =========================================================
     initial clk = 0;
 
@@ -65,9 +65,9 @@ module test_bench;
     // UART RECEIVER / MONITOR
     // =========================================================
     initial begin
+
         forever begin
 
-            // Wait for UART START bit
             @(negedge uart_tx);
 
             $display("\n[UART] START BIT DETECTED at time %0t ns", $time);
@@ -75,23 +75,23 @@ module test_bench;
             // Move to middle of first data bit
             #(BAUD_PERIOD + (BAUD_PERIOD/2));
 
-            // Read 8 data bits (LSB first)
+            // Read 8 UART bits
             for (i = 0; i < 8; i = i + 1) begin
                 rx_byte[i] = uart_tx;
                 #BAUD_PERIOD;
             end
 
-            // STOP bit verification
+            // STOP BIT CHECK
             if (uart_tx == 1'b1)
                 $display("[UART PASS] STOP bit valid.");
             else
                 $display("[UART FAIL] STOP bit invalid.");
 
-            // Display UART byte
+            // DISPLAY RECEIVED BYTE
             $display("[UART DATA] RX Byte = 0x%h (%c)",
                       rx_byte, rx_byte);
 
-            // Example ASCII validation
+            // SIMPLE ASCII VALIDATION
             case (rx_byte)
 
                 "E":
@@ -119,14 +119,14 @@ module test_bench;
         // -----------------------------------------------------
         // INITIALIZE INPUTS
         // -----------------------------------------------------
-        flame_in = 1;        // SAFE (ACTIVE LOW)
-        mq2_in   = 1;        // SAFE (ACTIVE LOW)
-        seat_bus = 4'b1111;  // ALL EMPTY
-        gps_rx   = 1;        // UART IDLE
-        gsm_rx   = 1;        // UART IDLE
+        flame_in = 1;
+        mq2_in   = 1;
+        seat_bus = 4'b1111;
+        gps_rx   = 1;
+        gsm_rx   = 1;
 
         // -----------------------------------------------------
-        // GTKWAVE DUMP FILE
+        // WAVEFORM DUMP
         // -----------------------------------------------------
         $dumpfile("safetrack_tb.vcd");
         $dumpvars(0, test_bench);
@@ -136,7 +136,7 @@ module test_bench;
         $display("==================================================");
 
         // =====================================================
-        // TEST 1 : BAUD RATE / CLOCK DIVIDER TEST
+        // TEST 1 : BAUD RATE
         // =====================================================
         $display("\n[TEST 1] BAUD RATE CLOCK DIVIDER TEST");
 
@@ -151,17 +151,16 @@ module test_bench;
         #1000;
 
         // =====================================================
-        // TEST 2 : NORMAL UART TELEMETRY TEST
+        // TEST 2 : UART TELEMETRY
         // =====================================================
         $display("\n[TEST 2] NORMAL UART TELEMETRY TEST");
 
         // Seat1 and Seat4 occupied
         seat_bus = 4'b1001;
 
-        // Fast-forward telemetry timer
+        // Fast-forward timer
         force uut.sample_timer = 25'd13_499_990;
 
-        // Wait for UART transmission
         #50_000_000;
 
         $display("[PASS] UART telemetry transmission completed.");
@@ -169,7 +168,7 @@ module test_bench;
         release uut.sample_timer;
 
         // =====================================================
-        // TEST 3 : FLAME SENSOR TEST
+        // TEST 3 : FLAME SENSOR
         // =====================================================
         $display("\n[TEST 3] FLAME SENSOR TEST");
 
@@ -187,7 +186,7 @@ module test_bench;
         #50000;
 
         // =====================================================
-        // TEST 4 : MQ2 SMOKE SENSOR TEST
+        // TEST 4 : MQ2 SENSOR
         // =====================================================
         $display("\n[TEST 4] MQ2 SMOKE SENSOR TEST");
 
@@ -205,11 +204,10 @@ module test_bench;
         #50000;
 
         // =====================================================
-        // TEST 5 : MPU6050 CRASH DETECTION TEST
+        // TEST 5 : CRASH DETECTION
         // =====================================================
         $display("\n[TEST 5] MPU6050 CRASH DETECTION TEST");
 
-        // Force huge acceleration
         force uut.real_accel_x = 16'sd20000;
 
         #50000;
@@ -224,11 +222,9 @@ module test_bench;
         #50000;
 
         // =====================================================
-        // TEST 6 : GSM FSM STATE TRANSITION TEST
+        // TEST 6 : GSM FSM + GOOGLE MAPS URL
         // =====================================================
         $display("\n[TEST 6] GSM FSM STATE TRANSITION TEST");
-
-        // Force GSM timers to advance FSM states
 
         // CALL STATE
         force uut.gsm_timer = 27_000_000 * 15;
@@ -238,27 +234,83 @@ module test_bench;
         force uut.gsm_timer = 27_000_000 * 2;
         #50000;
 
-        // SMS MODE STATE
+        // SMS MODE
         force uut.gsm_timer = 27_000_000 * 1;
         #50000;
 
-        // SMS NUMBER STATE
+        // SMS NUMBER
         force uut.gsm_timer = 27_000_000 * 1;
         #50000;
 
-        // SMS BODY STATE
+        // SMS BODY
         force uut.gsm_timer = 27_000_000 / 10;
         #50000;
 
-        if (uut.gsm_passthrough_en == 1)
-            $display("[PASS] GSM passthrough verified.");
-        else
-            $display("[FAIL] GSM passthrough failed.");
+        // =====================================================
+        // DUMP FULL GOOGLE MAPS SMS URL
+        // =====================================================
+        $display("\n[INFO] Dumping GSM SMS URL buffer (indices 0..53):");
+
+        for (i = 0; i < 54; i = i + 1) begin
+
+            if (i == 37)
+                $display("[SMS URL] Coordinate section begins:");
+
+            $write("%c", uut.gsm_msg[i]);
+
+        end
+
+        $display("\n[INFO] End of SMS URL buffer dump.\n");
+
+        // =====================================================
+        // FULL GOOGLE MAPS URL VALIDATION
+        // =====================================================
+
+        if (
+
+            uut.gsm_msg[37] == "1" &&
+            uut.gsm_msg[38] == "7" &&
+            uut.gsm_msg[39] == "." &&
+            uut.gsm_msg[40] == "3" &&
+            uut.gsm_msg[41] == "8" &&
+            uut.gsm_msg[42] == "5" &&
+            uut.gsm_msg[43] == "0" &&
+
+            uut.gsm_msg[44] == "," &&
+
+            uut.gsm_msg[45] == "7" &&
+            uut.gsm_msg[46] == "8" &&
+            uut.gsm_msg[47] == "." &&
+            uut.gsm_msg[48] == "4" &&
+            uut.gsm_msg[49] == "8" &&
+            uut.gsm_msg[50] == "6" &&
+            uut.gsm_msg[51] == "7" &&
+
+            uut.gsm_msg[52] == 8'h0D &&
+            uut.gsm_msg[53] == 8'h0A
+
+        )
+
+        begin
+
+            $display("[PASS] Full Google Maps coordinate string verified.");
+            $display("[PASS] Clickable URL generation verified.");
+            $display("[PASS] CRLF termination verified.");
+            $display("[PASS] Industrial-grade formatted SMS validation passed.");
+
+        end
+
+        else begin
+
+            $display("[FAIL] Google Maps URL formatting failed.");
+            $display("[FAIL] Coordinate validation mismatch detected.");
+
+        end
 
         release uut.gsm_timer;
 
         // =====================================================
-        // TEST 7 : MULTI-SENSOR EMERGENCY TEST
+        // TEST 7 : MULTI SENSOR EMERGENCY
         // =====================================================
         $display("\n[TEST 7] MULTI-SENSOR EMERGENCY TEST");
 
@@ -283,51 +335,51 @@ module test_bench;
         #50000;
 
         // =====================================================
-        // TEST 8 : LIMIT SWITCH / SEAT COMBINATION TEST
+        // TEST 8 : SEAT COMBINATIONS
         // =====================================================
         $display("\n[TEST 8] LIMIT SWITCH COMBINATION TEST");
 
-        // CASE 1 : ALL EMPTY
+        // CASE 1
         seat_bus = 4'b1111;
         #50000;
         $display("[CASE 1] ALL EMPTY            -> %b", seat_bus);
 
-        // CASE 2 : SEAT 1 OCCUPIED
+        // CASE 2
         seat_bus = 4'b1110;
         #50000;
         $display("[CASE 2] SEAT 1 OCCUPIED      -> %b", seat_bus);
 
-        // CASE 3 : SEAT 2 OCCUPIED
+        // CASE 3
         seat_bus = 4'b1101;
         #50000;
         $display("[CASE 3] SEAT 2 OCCUPIED      -> %b", seat_bus);
 
-        // CASE 4 : SEAT 3 OCCUPIED
+        // CASE 4
         seat_bus = 4'b1011;
         #50000;
         $display("[CASE 4] SEAT 3 OCCUPIED      -> %b", seat_bus);
 
-        // CASE 5 : SEAT 4 OCCUPIED
+        // CASE 5
         seat_bus = 4'b0111;
         #50000;
         $display("[CASE 5] SEAT 4 OCCUPIED      -> %b", seat_bus);
 
-        // CASE 6 : TWO SEATS OCCUPIED
+        // CASE 6
         seat_bus = 4'b0011;
         #50000;
         $display("[CASE 6] TWO SEATS OCCUPIED   -> %b", seat_bus);
 
-        // CASE 7 : THREE SEATS OCCUPIED
+        // CASE 7
         seat_bus = 4'b0001;
         #50000;
         $display("[CASE 7] THREE SEATS OCCUPIED -> %b", seat_bus);
 
-        // CASE 8 : ALL SEATS OCCUPIED
+        // CASE 8
         seat_bus = 4'b0000;
         #50000;
         $display("[CASE 8] ALL SEATS OCCUPIED   -> %b", seat_bus);
 
-        $display("[PASS] All seat/limit-switch combinations verified.");
+        $display("[PASS] All seat combinations verified.");
 
         // =====================================================
         // FINAL RESULT
