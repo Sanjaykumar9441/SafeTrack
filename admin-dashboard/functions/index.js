@@ -1,9 +1,10 @@
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const axios = require("axios");
 const twilio = require("twilio");
 
 require("dotenv").config();
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const groqApiKey = defineSecret("GROQ_API_KEY");
 
 // all credentials loaded from environment variables (set via Firebase Functions config or .env)
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
@@ -25,12 +26,15 @@ const EMERGENCY_CONTACTS = [
 ];
 
 exports.askAI = onCall(
-  { region: "asia-south1" },
+  {
+    region: "asia-south1",
+    secrets: [groqApiKey],
+  },
   async (request) => {
     try {
       const prompt = request.data.prompt;
       console.log("Prompt:", prompt);
-      console.log("Groq Key Exists:", !!GROQ_API_KEY);
+      console.log("Groq Key Exists:", !!groqApiKey.value());
 
       const response = await axios.post(
         "https://api.groq.com/openai/v1/chat/completions",
@@ -46,7 +50,7 @@ exports.askAI = onCall(
         {
           headers: {
             Authorization:
-              `Bearer ${GROQ_API_KEY}`,
+              `Bearer ${groqApiKey.value()}`,
             "Content-Type": "application/json",
           },
         }
@@ -69,7 +73,7 @@ exports.askAI = onCall(
 
       throw new HttpsError(
         "internal",
-        "Groq AI failed."
+        error.response?.data?.error?.message || "Groq AI failed."
       );
     }
   }
