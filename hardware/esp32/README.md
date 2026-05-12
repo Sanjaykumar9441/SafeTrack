@@ -1,49 +1,58 @@
 # SafeTrack IoT Module
 
-## Architecture
+> ESP32-Based Cloud Telemetry Gateway for the SafeTrack Smart Bus Safety System
 
+---
+
+# Overview
+
+The **SafeTrack IoT Module** acts as the communication bridge between the FPGA hardware safety layer and the cloud infrastructure.
+
+Built on the **ESP32**, the subsystem:
+
+* receives FPGA telemetry through UART
+* acquires GPS coordinates from the NEO-6M module
+* formats structured JSON payloads
+* uploads real-time safety data to Firebase Firestore using HTTPS REST APIs
+
+The ESP32 enables:
+
+* cloud synchronization
+* dashboard updates
+* mobile app monitoring
+* real-time emergency visibility
+
+---
+
+# System Architecture
+
+```text id="rjyvhg"
+Tang Nano 9K FPGA  --UART 9600-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
+(sensor processing)               (IoT Gateway)              (Cloud Database)
 ```
-Tang Nano 9K (FPGA)  --UART 9600-->  ESP32  --WiFi/HTTPS-->  Firebase Firestore
-  (sensor processing)               (gateway + GPS)            (cloud DB)
-```
 
-## ESP32
+---
 
-Receives sensor telemetry from the FPGA over UART, reads GPS from a NEO-6M module, and pushes a combined JSON payload to Firebase Firestore via the REST API every 10 seconds.
+# ESP32 Responsibilities
 
-### Source Files
+The ESP32 firmware acts as the intelligent IoT communication layer.
 
-| File | Purpose |
-|------|---------|
-| `esp32_safetrack.ino` | Main firmware — FPGA packet parser, GPS reader, Firestore REST push |
-| `secrets.h.example` | Template for WiFi and Firebase credentials |
+### Core Responsibilities
 
-### Wiring
+* Receives FPGA UART telemetry
+* Parses binary telemetry packets
+* Reads GPS coordinates from NEO-6M
+* Merges telemetry and GPS data
+* Creates structured JSON payloads
+* Uploads telemetry to Firebase Firestore
+* Enables dashboard and mobile app synchronization
+* Handles emergency telemetry forwarding
 
-| Connection                  | ESP32 Pin |
-|-----------------------------|-----------|
-| Tang Nano TX (Pin 63) -> RX | GPIO 16   |
-| Tang Nano TX  -> GND | GND   |
+---
 
-### FPGA Binary Packet Format (8 bytes)
+# Internal Firmware Data Flow
 
-| Byte | Field       | Values                      |
-|------|-------------|-----------------------------|
-| 0    | Start       | `$` (0x24)                  |
-| 1    | Flame       | 0 = SAFE, 1 = UNSAFE        |
-| 2    | Smoke       | 0 = SAFE, 1 = UNSAFE        |
-| 3    | Tilt        | 0 = SAFE, 1 = UNSAFE        |
-| 4    | Seat        | 0 = EMPTY, 1 = OCCUPIED     |
-| 5    | Temperature | 0-99 (raw integer, deg C)   |
-| 6    | Emergency   | 0 = no, 1 = yes             |
-| 7    | End         | `\n` (0x0A)                 |
-
-## ESP32 Firmware Workflow
-
-The ESP32 acts as the IoT gateway between the FPGA hardware layer and the cloud infrastructure.
-
-### Internal Data Flow
-
+```text id="n17z7p"
 FPGA UART Telemetry
         ↓
 ESP32 UART Packet Parser
@@ -54,19 +63,115 @@ JSON Payload Formatting
         ↓
 Firebase REST API Upload
         ↓
-React Dashboard + Flutter App Synchronization
+React Dashboard + Flutter App Sync
+```
 
-### Firmware Responsibilities
+---
 
-- Receives binary telemetry packets from FPGA
-- Parses safety sensor data
-- Reads real-time GPS coordinates
-- Merges GPS and FPGA telemetry
-- Formats structured JSON payloads
-- Uploads live telemetry to Firebase Firestore
-- Enables real-time monitoring in dashboard and mobile app
+# Source Files
 
-## Example Firebase JSON Payload
+| File                  | Purpose                               |
+| --------------------- | ------------------------------------- |
+| `esp32_safetrack.ino` | Main ESP32 firmware                   |
+| `secrets.h.example`   | WiFi and Firebase credential template |
+
+---
+
+# Hardware Connections
+
+| Connection                       | ESP32 Pin                   |
+| -------------------------------- | --------------------------- |
+| Tang Nano TX (Pin 63) → ESP32 RX | GPIO 16                     |
+| Tang Nano GND → ESP32 GND        | GND                         |
+| NEO-6M GPS TX → ESP32 RX2        | GPIO 17                     |
+| SIM800L UART                     | Optional Future Integration |
+
+---
+
+# FPGA Binary Packet Format
+
+The FPGA transmits compact binary telemetry packets over UART.
+
+### Packet Size
+
+* 8 bytes
+* CRLF framed
+
+---
+
+## Packet Structure
+
+| Byte | Field       | Description           |
+| ---- | ----------- | --------------------- |
+| 0    | Start       | `$` (0x24)            |
+| 1    | Flame       | 0 = SAFE, 1 = UNSAFE  |
+| 2    | Smoke       | 0 = SAFE, 1 = UNSAFE  |
+| 3    | Tilt/Crash  | 0 = SAFE, 1 = UNSAFE  |
+| 4    | Seat        | Occupancy information |
+| 5    | Temperature | Raw integer °C        |
+| 6    | Emergency   | 0 = No, 1 = Yes       |
+| 7    | End         | `\n` (0x0A)           |
+
+---
+
+# UART Communication
+
+## UART Configuration
+
+| Parameter | Value |
+| --------- | ----- |
+| Baud Rate | 9600  |
+| Data Bits | 8     |
+| Stop Bits | 1     |
+| Parity    | None  |
+
+---
+
+## UART Buffer Management
+
+To prevent packet corruption and overflow:
+
+* RX buffer sizes increased to 1024 bytes
+* Non-blocking UART handlers used
+* Continuous UART polling implemented
+* CRLF packet framing added
+* GPS decoding handled incrementally
+
+This ensures stable communication during:
+
+* continuous telemetry upload
+* GPS acquisition
+* Firebase HTTPS requests
+
+---
+
+# GPS Integration
+
+The ESP32 receives live GPS coordinates from the NEO-6M module.
+
+### GPS Responsibilities
+
+* NMEA sentence parsing
+* Coordinate extraction
+* Timestamp synchronization
+* GPS validity checking
+
+### GPS Output Example
+
+```text id="i8moh6"
+Latitude  : 17.3850
+Longitude : 78.4867
+```
+
+---
+
+# Firebase Integration
+
+The ESP32 uploads real-time telemetry to Firebase Firestore using HTTPS REST APIs.
+
+---
+
+# Example Firebase JSON Payload
 
 ```json
 {
@@ -81,77 +186,176 @@ React Dashboard + Flutter App Synchronization
   "timestamp": "2026-05-11T10:15:00Z"
 }
 ```
-## Experimental Validation
 
-| Test | Result |
-|------|---------|
-| UART Packet Reception | Successful |
-| GPS Coordinate Acquisition | Successful |
-| Firebase Synchronization | Successful |
+---
+
+# Cloud Synchronization Workflow
+
+The uploaded telemetry is consumed by:
+
+* React Admin Dashboard
+* Flutter Mobile Application
+* Emergency Monitoring Interfaces
+
+This enables:
+
+* live bus tracking
+* emergency visualization
+* occupancy monitoring
+* cloud analytics
+
+---
+
+# Experimental Validation
+
+| Test                           | Result     |
+| ------------------------------ | ---------- |
+| UART Packet Reception          | Successful |
+| GPS Coordinate Acquisition     | Successful |
+| Firebase Synchronization       | Successful |
 | Real-time Dashboard Monitoring | Successful |
-| Flutter Mobile App Sync | Successful |
-| Emergency Alert Upload | Successful |
-| Seat Occupancy Monitoring | Successful |
-| GSM Emergency SMS | Successful |
+| Flutter Mobile App Sync        | Successful |
+| Emergency Alert Upload         | Successful |
+| Seat Occupancy Monitoring      | Successful |
+| Cloud Telemetry Upload         | Successful |
 
-### Validation Summary
+---
 
-- FPGA telemetry was successfully transmitted to the ESP32 over UART.
-- GPS coordinates were acquired and merged with sensor telemetry.
-- JSON payloads were uploaded successfully to Firebase Firestore.
-- Dashboard and mobile applications updated in real time.
-- Emergency alerts were propagated successfully across the system.
+# Validation Summary
 
-## ESP32 Firmware Location
+The IoT subsystem was validated successfully under prototype-level testing.
 
-The ESP32 cloud communication firmware is located at:
+### Verified Operations
 
-/iot/esp32_safetrack.ino
+* FPGA telemetry reception through UART
+* GPS coordinate acquisition
+* Firebase HTTPS communication
+* Real-time dashboard updates
+* Flutter mobile synchronization
+* Emergency telemetry propagation
+* UART buffer overflow mitigation
 
-It handles:
-- UART communication with FPGA
-- GPS acquisition
-- Firebase REST uploads
-- emergency telemetry forwarding
+---
 
-## UART Buffer Management
-
-The ESP32 processes FPGA telemetry UART and GPS UART independently using non-blocking serial handlers.
-
-To prevent UART buffer overflow:
-- RX buffer sizes are increased to 1024 bytes
-- UART reads are processed continuously in the main loop
-- CRLF packet framing is used for FPGA telemetry
-- GPS NMEA parsing uses incremental character decoding
-- Blocking delays are avoided during Firebase communication
-
-### Dependencies (Arduino IDE)
-
-- `ArduinoJson`
-- `TinyGPSPlus`
-- WiFi (built-in ESP32)
-- HTTPClient (built-in ESP32)
-
-## ESP32 Verification
-
-- UART packet parsing verified
-- GPS NMEA decoding validated
-- Firebase HTTPS upload tested
-- Buffer overflow mitigation added using 1024-byte UART buffers
-
-## Firmware Communication
+# Firmware Communication Features
 
 The ESP32 firmware supports:
-- UART telemetry reception
-- Firebase cloud synchronization
-- GPS NMEA parsing
-- GSM AT-command coordination
-- Emergency alert forwarding
 
-## Firmware Responsibilities
+* UART telemetry reception
+* GPS NMEA decoding
+* Firebase REST uploads
+* Emergency alert forwarding
+* Cloud synchronization workflows
 
-The ESP32 firmware handles GPS telemetry acquisition, Firebase cloud synchronization, UART communication with FPGA modules, sensor-data forwarding, and emergency escalation workflows.
+---
 
-### Configuration
+# Dependencies
 
-Copy `secrets.h.example` to `secrets.h` and fill in your WiFi SSID/password and Firebase project credentials. `secrets.h` is gitignored and will not be committed.
+## Arduino IDE Libraries
+
+| Library       | Purpose         |
+| ------------- | --------------- |
+| `ArduinoJson` | JSON formatting |
+| `TinyGPSPlus` | GPS decoding    |
+| `WiFi`        | ESP32 WiFi      |
+| `HTTPClient`  | HTTPS requests  |
+
+---
+
+# ESP32 Verification
+
+The following features were verified successfully:
+
+* UART packet parsing
+* GPS coordinate extraction
+* Firebase HTTPS uploads
+* Telemetry synchronization
+* Buffer overflow handling
+* Cloud telemetry forwarding
+
+---
+
+# Firmware Location
+
+```text id="4cw49m"
+/iot/esp32_safetrack.ino
+```
+
+---
+
+# Configuration
+
+## Credential Setup
+
+Copy:
+
+```text id="p4t8yz"
+secrets.h.example
+```
+
+to:
+
+```text id="j9x22u"
+secrets.h
+```
+
+and configure:
+
+* WiFi SSID
+* WiFi Password
+* Firebase credentials
+* Firestore project details
+
+---
+
+# Security Note
+
+```text id="wx4qgm"
+secrets.h
+```
+
+is gitignored and must not be committed to the repository.
+
+---
+
+# Repository Structure
+
+```text id="2gjmvt"
+iot/
+├── esp32_safetrack.ino
+├── secrets.h.example
+└── README.md
+```
+
+---
+
+# System Integration
+
+The ESP32 integrates with:
+
+* Tang Nano 9K FPGA
+* Firebase Firestore
+* React Admin Dashboard
+* Flutter Mobile Application
+* GPS Telemetry Services
+
+---
+
+# Tech Stack
+
+| Category       | Technology         |
+| -------------- | ------------------ |
+| IoT Controller | ESP32              |
+| Communication  | UART               |
+| Cloud          | Firebase Firestore |
+| GPS            | NEO-6M             |
+| Firmware       | Arduino Framework  |
+| Protocol       | HTTPS REST API     |
+
+---
+
+# License
+
+Developed as part of **Project Space 2026**
+Department of Electronics & Communication Engineering
+Aditya University, India.

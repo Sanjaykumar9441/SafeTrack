@@ -59,7 +59,6 @@ reg        gsm_rx    = 1;
 // Bidirectional SDA: we need to drive it as a slave in I2C tests
 reg  sda_slave_drive = 0;    // 1 → slave pulls SDA low (ACK)
 reg  sda_slave_val   = 0;
-wire i2c_sda_w;
 assign i2c_sda = (sda_slave_drive) ? sda_slave_val : 1'bz;
  
 // ---------------------------------------------------------------------------
@@ -87,6 +86,8 @@ master_safety_system #(
  
 // ---- UART byte capture (one complete frame) --------------------------------
 // Wait for start-bit, then sample centre of each bit.
+// Captures one complete UART frame by sampling
+// the serial line at the center of each bit period.
 task automatic capture_uart_byte;
     input  is_gsm;           // 0 = uart_tx, 1 = gsm_tx
     output [7:0] byte_out;
@@ -136,6 +137,8 @@ endtask
  
 // ---- Wait N sample periods (0.5 s each at 27 MHz) -------------------------
 // 13_500_000 clocks = one 0.5-s sample window
+// Advances simulation through one or more
+// telemetry sampling windows.
 task automatic wait_sample_periods;
     input integer n;
     integer i;
@@ -148,7 +151,9 @@ endtask
 // ---- Quick check helper ----------------------------------------------------
 integer pass_count = 0;
 integer fail_count = 0;
- 
+
+// Generic assertion helper for pass/fail
+// reporting during simulation.
 task automatic check;
     input test_pass;
     input [127:0] test_name;
@@ -196,6 +201,7 @@ initial begin
     // -----------------------------------------------------------------------
     flame_in = 1; mq2_in = 1; seat_bus = 4'b1111;
     // Force accel_x to a safe value
+    // Force/release is used to inject synthetic
     force dut.i2c_engine.accel_x = 16'sd0;
  
     wait_sample_periods(1);
@@ -352,6 +358,8 @@ initial begin
  
     begin : tc09_block
         time t_start, t_stop;
+        // Validate UART timing remains within
+// acceptable tolerance of 9600 baud.
         real measured_baud;
  
         // Wait for falling edge (start bit)
@@ -390,6 +398,8 @@ initial begin
  
     // -----------------------------------------------------------------------
     // TC11 — GSM emergency state machine walk-through
+    // Verifies emergency call and SMS AT-command
+// sequencing through the GSM UART interface.
     //        Trigger via flame, capture GSM TX character stream.
     //        Verify "ATD112;" and "AT+CMGF=1" appear in sequence.
     // -----------------------------------------------------------------------
@@ -471,6 +481,8 @@ initial begin
  
     // -----------------------------------------------------------------------
     // TC14 — mpu6050_reader: I2C START condition
+    // START condition occurs when SDA falls
+// while SCL remains HIGH.
     //        SCL must be HIGH and SDA must fall.
     // -----------------------------------------------------------------------
     begin : tc14_block
@@ -532,6 +544,8 @@ initial begin
     end
  
     // -----------------------------------------------------------------------
+    // Boundary-condition testing ensures crash
+// detection thresholds behave deterministically.
     // TC17 — Boundary: accel_x == CRASH_THRESHOLD (no latch expected)
     // -----------------------------------------------------------------------
     force dut.i2c_engine.accel_x = CRASH_THRESHOLD;  // exactly 18000
@@ -647,6 +661,8 @@ end
  
 // ---------------------------------------------------------------------------
 // Watchdog: abort after 10 billion ns to prevent infinite simulation
+// Prevents infinite simulation hangs caused
+// by stalled state machines or deadlocks.
 // ---------------------------------------------------------------------------
 initial begin
     #1000000;
