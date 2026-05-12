@@ -9,6 +9,16 @@ The Gowin Tang Nano 9K serves as the deterministic brain of the system. It is st
 
 ---
 
+## Communication Parameters
+
+The FPGA subsystem was validated using:
+- UART communication at 9600 baud
+- I2C communication at 100 kHz
+- MPU6050 sensor integration
+- FPGA-to-ESP32 telemetry forwarding
+
+Prototype-level verification support is included through `test_bench.v`.
+
 ## Emergency Flow
 
 1. FPGA continuously monitors all connected sensors in hardware.

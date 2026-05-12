@@ -139,6 +139,15 @@ To prevent UART buffer overflow:
 - Firebase HTTPS upload tested
 - Buffer overflow mitigation added using 1024-byte UART buffers
 
+## Firmware Communication
+
+The ESP32 firmware supports:
+- UART telemetry reception
+- Firebase cloud synchronization
+- GPS NMEA parsing
+- GSM AT-command coordination
+- Emergency alert forwarding
+
 ## Firmware Responsibilities
 
 The ESP32 firmware handles GPS telemetry acquisition, Firebase cloud synchronization, UART communication with FPGA modules, sensor-data forwarding, and emergency escalation workflows.
