@@ -1,5 +1,45 @@
+# ==========================================================
+# FPGA Pin Constraints File
+# ----------------------------------------------------------
+# Project : FPGA-Based Bus Safety Monitoring System
+# Device  : Gowin FPGA
+#
+# This file maps FPGA ports to physical hardware pins.
+#
+# Interfaces Used:
+# ----------------------------------------------------------
+# • MPU6050 I2C Accelerometer
+# • Flame Sensor
+# • MQ2 Smoke Sensor
+# • Passenger Seat Sensors
+# • ESP32 UART Telemetry
+# • SIM800L GSM Module
+# • GPS Module
+#
+# IO Standard:
+# ----------------------------------------------------------
+# LVCMOS33 (3.3V Logic)
+# ==========================================================
+
+
+# ==========================================================
+# SYSTEM CLOCK
+# ----------------------------------------------------------
+# 27MHz external oscillator input
+# ==========================================================
+
 IO_LOC "clk" 52;
 IO_PORT "clk" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+
+# ==========================================================
+# MPU6050 I2C INTERFACE
+# ----------------------------------------------------------
+# i2c_scl : Serial Clock Line
+# i2c_sda : Serial Data Line
+#
+# Open-drain communication with pull-up resistors.
+# ==========================================================
 
 IO_LOC "i2c_sda" 25;
 IO_PORT "i2c_sda" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8;
@@ -7,32 +47,110 @@ IO_PORT "i2c_sda" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8;
 IO_LOC "i2c_scl" 26;
 IO_PORT "i2c_scl" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8;
 
+
+# ==========================================================
+# FLAME SENSOR INPUT
+# ----------------------------------------------------------
+# Active-Low Sensor:
+# 0 → Flame detected
+# 1 → No flame
+# ==========================================================
+
 IO_LOC "flame_in" 27;
 IO_PORT "flame_in" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+
+# ==========================================================
+# MQ2 SMOKE/GAS SENSOR INPUT
+# ----------------------------------------------------------
+# Active-Low Sensor:
+# 0 → Smoke/Gas detected
+# 1 → Normal condition
+# ==========================================================
 
 IO_LOC "mq2_in" 28;
 IO_PORT "mq2_in" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
+
+# ==========================================================
+# PASSENGER SEAT SENSORS
+# ----------------------------------------------------------
+# Active-Low Seat Detection:
+#
+# 0 → Passenger seated
+# 1 → Seat empty
+#
+# Total Supported Seats: 4
+# ==========================================================
+
+# Seat 1
 IO_LOC "seat_bus[0]" 29;
 IO_PORT "seat_bus[0]" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
+# Seat 2
 IO_LOC "seat_bus[1]" 30;
 IO_PORT "seat_bus[1]" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
+# Seat 3
 IO_LOC "seat_bus[2]" 41;
 IO_PORT "seat_bus[2]" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
+# Seat 4
 IO_LOC "seat_bus[3]" 42;
 IO_PORT "seat_bus[3]" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+
+
+# ==========================================================
+# UART TELEMETRY OUTPUT TO ESP32
+# ----------------------------------------------------------
+# Sends real-time telemetry packets:
+#
+# Example:
+# SAFE CLEAN SAFE SEATS2
+#
+# or
+#
+# FLAME! SMOKE! CRASH! SEATS4
+# ==========================================================
 
 IO_LOC "uart_tx" 63;
 IO_PORT "uart_tx" IO_TYPE=LVCMOS33;
 
+
+# ==========================================================
+# GPS MODULE UART INPUT
+# ----------------------------------------------------------
+# Receives GPS serial data from NEO-6M module.
+#
+# Current Status:
+# ----------------------------------------------------------
+# Reserved for future live GPS parsing.
+# Present implementation uses fixed coordinates.
+# ==========================================================
+
 IO_LOC "gps_rx" 31;
 IO_PORT "gps_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;
 
+
+# ==========================================================
+# GSM MODULE UART INTERFACE
+# ----------------------------------------------------------
+# SIM800L GSM Communication
+#
+# gsm_tx → FPGA transmits AT commands
+# gsm_rx → FPGA receives GSM responses
+#
+# Functions:
+# ----------------------------------------------------------
+# • Emergency call to 112
+# • Emergency SMS transmission
+# • Google Maps location sharing
+# ==========================================================
+
+# FPGA TX → GSM RX
 IO_LOC "gsm_tx" 32;
 IO_PORT "gsm_tx" IO_TYPE=LVCMOS33;
 
+# FPGA RX ← GSM TX
 IO_LOC "gsm_rx" 33;
 IO_PORT "gsm_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;

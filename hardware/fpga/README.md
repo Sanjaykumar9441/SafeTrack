@@ -3,7 +3,7 @@
 The Gowin Tang Nano 9K serves as the deterministic brain of the system. It is strictly responsible for hardwired safety monitoring and emergency execution, completely decoupled from internet dependencies.
 
 ## Key Features
-- **Hardware-Level Sensor Polling:** Reads flame, smoke, crash (MPU-6050 via I2C), and physical seat occupancy sensors concurrently with zero software overhead.
+- **Hardware-Level Sensor Polling:** Reads flame, smoke, crash (MPU-6050 via I2C), and physical seat occupancy sensors concurrently with Low software overhead.
 - **Hardware GPS Passthrough:** Temporarily bridges the NEO-6M GPS `TX` directly to the SIM800L GSM `RX` during an emergency, injecting raw NMEA data directly into an SMS without complex string parsing in Verilog.
 - **Internet Bypass:** On crash or fire, the FPGA latches an independent GSM state machine that dials 112 and dispatches an SMS to authorities — ensuring safety even if Wi-Fi or Cloud infrastructure fails.
 
@@ -138,6 +138,10 @@ The FPGA handles deterministic emergency logic, while the ESP32 and cloud infras
 ## Verification Support
 
 The FPGA subsystem includes simulation-oriented validation support through `test_bench.v` for prototype-level UART/I2C communication and sensor-integration verification.
+
+## Simulation and Validation
+
+The FPGA subsystem includes `test_bench.v` for prototype-level simulation and validation of UART/I2C communication workflows and sensor-event processing.
 
 ---
 

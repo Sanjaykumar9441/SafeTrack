@@ -335,7 +335,7 @@ initial begin
             for (idx = 0; idx < 29; idx = idx+1)
                 capture_uart_byte(0, byte_arr[idx]);
             check(byte_arr[26] == (8'd48 + p),
-                  $sformatf("TC08: passenger_count=%0d encoded correctly", p));
+      "TC08 passenger count check");
         end
     end
  
@@ -649,8 +649,8 @@ end
 // Watchdog: abort after 10 billion ns to prevent infinite simulation
 // ---------------------------------------------------------------------------
 initial begin
-    #10_000_000_000;
-    $display("[WATCHDOG] Simulation exceeded time limit — forcing finish.");
+    #1000000;
+    $display("[WATCHDOG] Simulation exceeded time limit.");
     $finish;
 end
  

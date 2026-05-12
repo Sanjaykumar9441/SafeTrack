@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { FaBus } from 'react-icons/fa';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import {
     FiAlertTriangle, FiUsers, FiMapPin, FiNavigation,
     FiLogOut, FiRefreshCw, FiCheckCircle, FiClock,
@@ -17,6 +18,7 @@ import toast from 'react-hot-toast';
 const DriverTerminal = () => {
     const navigate = useNavigate();
     const { logout, user: driver } = useAuth();
+    const functions = getFunctions();
 
     // Session
     const bus = JSON.parse(localStorage.getItem('driver_bus') || 'null');
@@ -239,16 +241,46 @@ const DriverTerminal = () => {
     // ── AI Rerouting ──────────────────────────────────────────
 
     const handleReroute = async () => {
+
         setRerouteLoading(true);
+
         setRerouteMsg('');
+
         try {
 
+            const generateRouteAdvice =
+                httpsCallable(
+                    functions,
+                    'generateRouteAdvice'
+                );
+
+            const result =
+                await generateRouteAdvice({
+
+                    currentLocation:
+                        nextStop?.name || 'Unknown',
+
+                    destination:
+                        routeData?.destination || 'Unknown',
+
+                    nextStop:
+                        nextStop?.name || 'Unknown',
+                });
+
             setRerouteMsg(
-                'Traffic ahead may be slow. Continue on the current route and maintain safe speed.'
+                result.data.advice
             );
-        } catch {
-            setRerouteMsg('AI rerouting unavailable. Follow the standard route.');
+
+        } catch (err) {
+
+            console.error(err);
+
+            setRerouteMsg(
+                'AI rerouting unavailable. Continue on the current route safely.'
+            );
+
         } finally {
+
             setRerouteLoading(false);
         }
     };

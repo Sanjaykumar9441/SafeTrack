@@ -1,0 +1,7 @@
+EMERGENCY ALERT!
+Crash/Fire detected in bus.
+
+Passengers: 4
+
+Location:
+https://maps.google.com/?q=17.3850,78.4867

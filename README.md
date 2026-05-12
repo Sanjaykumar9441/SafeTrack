@@ -246,6 +246,10 @@ flutter run \
 ```
 You also need `google-services.json` at `mobile-app/android/app/` — download it from the Firebase Console (Project Settings → Android app).
 
+### AI Route Assistance
+
+The Driver Terminal integrates Groq/LLaMA 3 inference through Firebase Cloud Functions for AI-assisted rerouting and traffic-management recommendations.
+
 ### Cloud Functions
 ```bash
 cd admin-dashboard/functions

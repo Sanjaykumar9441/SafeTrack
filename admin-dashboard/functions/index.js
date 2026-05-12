@@ -79,6 +79,77 @@ exports.askAI = onCall(
   }
 );
 
+exports.generateRouteAdvice = onCall(
+  {
+    region: "asia-south1",
+    secrets: [groqApiKey],
+  },
+
+  async (request) => {
+
+    try {
+
+      const {
+        currentLocation,
+        destination,
+        nextStop,
+      } = request.data;
+
+      const response = await axios.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: "llama-3.1-8b-instant",
+
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an AI transportation safety assistant for public buses.",
+            },
+
+            {
+              role: "user",
+
+              content:
+                `A bus is currently near ${currentLocation}.
+Destination: ${destination}.
+Next stop: ${nextStop}.
+
+Suggest a short safe rerouting or traffic-management recommendation for the driver.`,
+            },
+          ],
+        },
+
+        {
+          headers: {
+            Authorization:
+              `Bearer ${groqApiKey.value()}`,
+
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const advice =
+        response.data.choices[0].message.content;
+
+      return {
+        success: true,
+        advice,
+      };
+
+    } catch (error) {
+
+      console.error("AI Route Advice Error:", error);
+
+      throw new HttpsError(
+        "internal",
+        "Failed to generate route advice"
+      );
+    }
+  }
+);
+
 // initiate a voice call using Twilio with a TwiML emergency message
 async function makeCall(toNumber) {
   const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
