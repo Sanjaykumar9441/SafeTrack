@@ -215,6 +215,8 @@ always @(posedge clk) begin
     // Crash Detection Logic
     // ======================================================
 
+    // Detect sudden acceleration spikes that may
+    // indicate collision or rollover conditions.
     if (real_accel_x > CRASH_THRESHOLD ||
         real_accel_x < -CRASH_THRESHOLD)
 
@@ -224,7 +226,8 @@ always @(posedge clk) begin
     // ======================================================
     // Passenger Counting
     // ======================================================
-
+    // Active-low seat sensors are inverted before
+// occupancy aggregation.
     passenger_count <=
         (~seat_sync[0]) +
         (~seat_sync[1]) +
@@ -251,7 +254,8 @@ always @(posedge clk) begin
 
         // Fire Status
         if (!flame_sync) begin
-
+           // Construct human-readable telemetry packet
+// for ESP32 cloud forwarding.
             msg[0] <= "F";
             msg[1] <= "L";
             msg[2] <= "A";
@@ -350,7 +354,8 @@ always @(posedge clk) begin
     // UART Frame:
     // Start Bit + 8 Data Bits + Stop Bit
     // ======================================================
-
+    // UART transmission finite-state machine
+// controlling serialized telemetry output.
     if (!tx_active) begin
 
         if (send_trigger) begin
@@ -377,7 +382,8 @@ always @(posedge clk) begin
 
             // Start Bit
             if (bit_idx == 0) begin
-
+                // UART frame format:
+// [STOP BIT][8 DATA BITS][START BIT]
                 shift_reg <= {1'b1, msg[char_idx], 1'b0};
 
                 bit_idx <= 4'd1;
@@ -436,6 +442,8 @@ end
 
 wire emergency_flag;
 
+// Any hazardous condition activates
+// emergency escalation workflow.
 assign emergency_flag =
        is_crashing ||
       !flame_sync  ||
@@ -513,7 +521,7 @@ always @(posedge clk) begin
 
     end
 
-
+    // GSM emergency escalation state machine.
     case (gsm_state)
 
         // ==================================================
@@ -529,7 +537,8 @@ always @(posedge clk) begin
         // ==================================================
 
         1: begin
-
+           // Dial emergency services using
+// SIM800L AT command interface.
             gsm_msg[0] <= "A";
             gsm_msg[1] <= "T";
             gsm_msg[2] <= "D";
@@ -577,7 +586,7 @@ always @(posedge clk) begin
         // ==================================================
 
         3: begin
-
+            // Configure GSM module for SMS text mode.
             gsm_msg[0] <= "A";
             gsm_msg[1] <= "T";
             gsm_msg[2] <= "H";
