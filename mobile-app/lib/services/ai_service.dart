@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 
 class AiService {
   static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
@@ -130,7 +131,7 @@ $userMessage
 
       return 'No response from AI.';
     } catch (e) {
-      print('Firebase Groq API with LLaMA 3 Error: $e');
+      debugPrint('Firebase Groq API Error: $e');
 
       return 'Connection error. Please try again.';
     }
