@@ -79,7 +79,7 @@ If the measured values exceed predefined limits, the FPGA activates emergency ha
 | Limit Switch 3| Physical seat occupancy sensing  | 41    | Active Low (GND)  |
 | Limit Switch 4| Physical seat occupancy sensing  | 42    | Active Low (GND)  |
 | NEO-6M        | Continuous GPS location tracking | 31    | UART RX (From TX) |
-| SIM800L       | Low-latency emergency SMS        | 32/33 | UART TX/RX        |
+| SIM800L       | Zero-latency emergency SMS       | 32/33 | UART TX/RX        |
 | ESP32 UART    | Normal telemetry output          | 63    | UART TX           |
 
 > **⚠️ Wiring Warning:** UART connections must be crossed. The FPGA's `gps_rx` pin (31) connects to the GPS module's `TX` pin. The FPGA's `gsm_tx` pin (32) connects to the GSM's `RX` pin.
@@ -134,6 +134,10 @@ The FPGA core integrates with:
 - Flutter mobile application
 
 The FPGA handles deterministic emergency logic, while the ESP32 and cloud infrastructure manage real-time monitoring and user-facing services.
+
+## Verification Support
+
+The FPGA subsystem includes simulation-oriented validation support through `test_bench.v` for prototype-level UART/I2C communication and sensor-integration verification.
 
 ---
 
