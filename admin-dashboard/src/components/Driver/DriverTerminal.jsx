@@ -1,639 +1,213 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { FaBus } from 'react-icons/fa';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import {
-    FiAlertTriangle, FiUsers, FiMapPin, FiNavigation,
-    FiLogOut, FiRefreshCw, FiCheckCircle, FiClock,
-} from 'react-icons/fi';
+import { FiAlertTriangle, FiCheckCircle, FiClock, FiLogOut, FiMapPin, FiNavigation, FiRefreshCw, FiUsers } from 'react-icons/fi';
 import { db } from '../../firebase';
 import {
-    collection, onSnapshot, addDoc, doc,
-    updateDoc, serverTimestamp, query, where,
-    orderBy, limit, getDocs,
+  collection,
+  doc,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  addDoc,
 } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
+const CLOUD_FUNCTION_URL = 'https://sendemergencyalert-zfpscvkqrq-uc.a.run.app';
+
 const DriverTerminal = () => {
-    const navigate = useNavigate();
-    const { logout, user: driver } = useAuth();
-    const functions = getFunctions();
+  const navigate = useNavigate();
+  const { logout, user: driver } = useAuth();
+  const functions = getFunctions();
+  const asiaFunctions = getFunctions(undefined, 'asia-south1');
 
-    // Session
-    const bus = JSON.parse(localStorage.getItem('driver_bus') || 'null');
+  const bus = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('driver_bus') || 'null'); }
+    catch { return null; }
+  }, []);
 
-    // State
-    const [liveData, setLiveData] = useState(null);
-    const [routeData, setRouteData] = useState(null);
-    const [nextStop, setNextStop] = useState(null);
-    const [waitingCount, setWaitingCount] = useState(0);
-    const [sosActive, setSosActive] = useState(false);
-    const [sosLoading, setSosLoading] = useState(false);
-    const [rerouteMsg, setRerouteMsg] = useState('');
-    const [rerouteLoading, setRerouteLoading] = useState(false);
-    const [time, setTime] = useState(new Date());
-    const [alerts, setAlerts] = useState([]);
-    const [driverStatus, setDriverStatus] = useState('ON_ROUTE');
+  const [liveData, setLiveData] = useState(null);
+  const [routeData, setRouteData] = useState(null);
+  const [nextStop, setNextStop] = useState(null);
+  const [waitingCount, setWaitingCount] = useState(0);
+  const [alerts, setAlerts] = useState([]);
+  const [sosActive, setSosActive] = useState(false);
+  const [sosLoading, setSosLoading] = useState(false);
+  const [sosAlertId, setSosAlertId] = useState(null);
+  const [rerouteMsg, setRerouteMsg] = useState('');
+  const [rerouteLoading, setRerouteLoading] = useState(false);
+  const [driverStatus, setDriverStatus] = useState('ON_ROUTE');
+  const [time, setTime] = useState(new Date());
 
-    const sosRef = useRef(null);
+  useEffect(() => { const timer = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(timer); }, []);
 
-    // Clock
-    useEffect(() => {
-        const t = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(t);
-    }, []);
+  useEffect(() => {
+    if (!bus?.id) return undefined;
+    const q = query(collection(db, 'live_data'), where('busId', '==', bus.id), orderBy('timestamp', 'desc'), limit(1));
+    return onSnapshot(q, (snap) => { if (!snap.empty) setLiveData({ id: snap.docs[0].id, ...snap.docs[0].data() }); }, console.error);
+  }, [bus]);
 
-    // Live data stream
-    useEffect(() => {
-        if (!bus) return;
-        const q = query(
-            collection(db, 'live_data'),
-            where('busId', '==', bus.id),
-            orderBy('timestamp', 'desc'),
-            limit(1)
-        );
-        const unsub = onSnapshot(q, snap => {
-            if (!snap.empty) setLiveData(snap.docs[0].data());
+  useEffect(() => {
+    if (!bus?.id) return undefined;
+    const q = query(collection(db, 'routes'), where('busId', '==', bus.id), limit(1));
+    return onSnapshot(q, (snap) => {
+      if (snap.empty) { setRouteData(null); setNextStop(null); return; }
+      const route = { id: snap.docs[0].id, ...snap.docs[0].data() };
+      setRouteData(route);
+      const stops = Array.isArray(route.intermediateStops) ? route.intermediateStops : [];
+      setNextStop(stops[0] || null);
+    });
+  }, [bus]);
+
+  useEffect(() => {
+    if (!bus?.id) return undefined;
+    return onSnapshot(doc(db, 'buses', bus.id), (snap) => {
+      if (snap.exists()) setDriverStatus(snap.data().driverStatus || 'ON_ROUTE');
+    });
+  }, [bus]);
+
+  useEffect(() => {
+    if (!bus?.id || !nextStop?.name) { setWaitingCount(0); return undefined; }
+    const q = query(collection(db, 'stop_waiting'), where('stopName', '==', nextStop.name), where('busId', '==', bus.id), limit(1));
+    return onSnapshot(q, (snap) => setWaitingCount(snap.empty ? 0 : Number(snap.docs[0].data().count || 0)));
+  }, [bus, nextStop]);
+
+  useEffect(() => {
+    if (!bus?.id) return undefined;
+    const q = query(collection(db, 'alerts'), where('busId', '==', bus.id), where('isResolved', '==', false), orderBy('timestamp', 'desc'), limit(10));
+    return onSnapshot(q, (snap) => {
+      const next = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setAlerts(next);
+      const manual = next.find((a) => a.alertType === 'MANUAL_SOS');
+      setSosActive(Boolean(manual));
+      setSosAlertId(manual?.id || null);
+    }, console.error);
+  }, [bus]);
+
+  const callEmergencyFunction = async (alert) => {
+    const response = await fetch(CLOUD_FUNCTION_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        alertId: alert.id, alertType: alert.alertType || 'EMERGENCY', busNumber: alert.busNumber || bus?.busNumber || 'Unknown',
+        severity: alert.severity || 'CRITICAL', latitude: Number(alert.latitude || 0), longitude: Number(alert.longitude || 0),
+        message: alert.message || 'Emergency detected',
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.success) throw new Error(data.error || 'Emergency notification service failed');
+    return data;
+  };
+
+  const handleSOS = async () => {
+    if (!bus?.id || sosActive || sosLoading) return;
+    if (!window.confirm('🚨 MANUAL SOS\n\nThis will create a CRITICAL emergency alert and send the configured SafeTrack notifications.\n\nConfirm SOS?')) return;
+    setSosLoading(true);
+    try {
+      const existingQuery = query(collection(db, 'alerts'), where('busId', '==', bus.id), where('alertType', '==', 'MANUAL_SOS'), where('isResolved', '==', false), limit(1));
+      const existing = await getDocs(existingQuery);
+      if (!existing.empty) { setSosActive(true); setSosAlertId(existing.docs[0].id); toast('An SOS is already active for this bus.'); return; }
+
+      const alert = {
+        busId: bus.id, busNumber: bus.busNumber || 'Unknown', alertType: 'MANUAL_SOS', severity: 'CRITICAL',
+        message: `Manual SOS triggered by driver ${driver?.name || 'driver'} on bus ${bus.busNumber || 'Unknown'}`,
+        latitude: Number(liveData?.latitude || 0), longitude: Number(liveData?.longitude || 0), isResolved: false,
+        emergencyAlertSent: false, triggeredBy: 'DRIVER', driverId: driver?.uid || '', driverName: driver?.name || driver?.displayName || 'Driver', timestamp: serverTimestamp(),
+      };
+      const created = await addDoc(collection(db, 'alerts'), alert);
+      const createdAlert = { id: created.id, ...alert };
+      await updateDoc(doc(db, 'buses', bus.id), { safetyStatus: 'DANGER', updatedAt: serverTimestamp() });
+      setSosActive(true); setSosAlertId(created.id);
+
+      try {
+        const result = await callEmergencyFunction(createdAlert);
+        const errors = result.results?.errors || [];
+        await updateDoc(doc(db, 'alerts', created.id), {
+          emergencyAlertSent: errors.length === 0, emergencyAlertSentAt: serverTimestamp(), notificationResult: result.results || null,
+          ...(errors.length ? { notificationError: errors.join('; ') } : {}),
         });
-        return () => unsub();
-    }, [bus]);
-    // Route data
-    useEffect(() => {
-        if (!bus) return;
-
-        const q = query(
-            collection(db, 'routes'),
-            where('busId', '==', bus.id),
-            limit(1)
-        );
-
-        const unsub = onSnapshot(q, snap => {
-            if (!snap.empty) {
-                const route = {
-                    id: snap.docs[0].id,
-                    ...snap.docs[0].data()
-                };
-
-                setRouteData(route);
-
-                const stops = route.intermediateStops || [];
-
-                if (stops.length > 0) {
-                    setNextStop(stops[0]);
-                }
-            }
-        });
-
-        return () => unsub();
-    }, [bus]);
-
-    // Driver status listener
-    useEffect(() => {
-        if (!bus) return;
-
-        const q = query(
-            collection(db, 'buses'),
-            where('__name__', '==', bus.id),
-            limit(1)
-        );
-
-        const unsub = onSnapshot(q, snap => {
-            if (!snap.empty) {
-                const data = snap.docs[0].data();
-
-                if (data.driverStatus) {
-                    setDriverStatus(data.driverStatus);
-                }
-            }
-        });
-
-        return () => unsub();
-    }, [bus]);
-
-    // Waiting passengers at next stop (simulated from a
-    // 'stop_waiting' Firestore collection — admin can update this)
-    useEffect(() => {
-        if (!nextStop) return;
-        const q = query(
-            collection(db, 'stop_waiting'),
-            where('stopName', '==', nextStop.name),
-            where('busId', '==', bus?.id || ''),
-            limit(1)
-        );
-        const unsub = onSnapshot(q, snap => {
-            if (!snap.empty) {
-                setWaitingCount(snap.docs[0].data().count || 0);
-            } else {
-                setWaitingCount(0);
-            }
-        });
-        return () => unsub();
-    }, [nextStop]);
-
-    // Unresolved alerts for this bus
-    useEffect(() => {
-        if (!bus) return;
-        const q = query(
-            collection(db, 'alerts'),
-            where('busId', '==', bus.id),
-            where('isResolved', '==', false),
-            orderBy('timestamp', 'desc'),
-            limit(5)
-        );
-        const unsub = onSnapshot(q, snap => {
-            setAlerts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        });
-        return () => unsub();
-    }, [bus]);
-
-    // ── SOS ──────────────────────────────────────────────────
-
-    const handleSOS = async () => {
-        if (sosActive) return;
-
-        const confirmed = window.confirm(
-            '🚨 MANUAL SOS\n\nThis will immediately alert emergency services, police, and the admin dashboard.\n\nConfirm SOS?'
-        );
-        if (!confirmed) return;
-
-        setSosLoading(true);
-        try {
-            // Create alert in Firestore
-            await addDoc(collection(db, 'alerts'), {
-                busId: bus.id,
-                busNumber: bus.busNumber,
-                alertType: 'MANUAL_SOS',
-                severity: 'CRITICAL',
-                message: `Manual SOS triggered by driver ${driver.name} on bus ${bus.busNumber}`,
-                latitude: liveData?.latitude || 0,
-                longitude: liveData?.longitude || 0,
-                isResolved: false,
-                triggeredBy: 'DRIVER',
-                driverId: driver.uid,
-                driverName: driver.name,
-                timestamp: serverTimestamp(),
-            });
-
-            // Update bus safety status
-            await updateDoc(doc(db, 'buses', bus.id), {
-                safetyStatus: 'DANGER',
-                updatedAt: serverTimestamp(),
-            });
-
-            // Call Cloud Function for voice call + Telegram + WhatsApp + Slack
-            try {
-                await fetch(
-                    'https://us-central1-safedrive-144.cloudfunctions.net/sendEmergencyAlert',
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            alertType: 'MANUAL_SOS',
-                            busNumber: bus.busNumber,
-                            severity: 'CRITICAL',
-                            latitude: liveData?.latitude || 0,
-                            longitude: liveData?.longitude || 0,
-                            message: `Manual SOS by driver ${driver.name} on bus ${bus.busNumber}`,
-                        }),
-                    }
-                );
-            } catch (_) {
-                // Cloud function call failed — alert still saved in Firestore
-            }
-
-            setSosActive(true);
-            toast.success('SOS Alert Sent! Help is on the way.');
-        } catch (err) {
-            toast.error('SOS failed: ' + err.message);
-        } finally {
-            setSosLoading(false);
-        }
-    };
-
-    const cancelSOS = async () => {
-        try {
-            // Resolve all manual SOS alerts for this bus
-            const q = query(
-                collection(db, 'alerts'),
-                where('busId', '==', bus.id),
-                where('alertType', '==', 'MANUAL_SOS'),
-                where('isResolved', '==', false)
-            );
-            const snap = await getDocs(q);
-            for (const d of snap.docs) {
-                await updateDoc(doc(db, 'alerts', d.id), {
-                    isResolved: true,
-                    resolvedBy: driver.name,
-                });
-            }
-            await updateDoc(doc(db, 'buses', bus.id), {
-                safetyStatus: 'SAFE',
-                updatedAt: serverTimestamp(),
-            });
-            setSosActive(false);
-            toast.success('SOS cancelled.');
-        } catch (err) {
-            toast.error('Cancel failed: ' + err.message);
-        }
-    };
-
-    // ── AI Rerouting ──────────────────────────────────────────
-
-    const handleReroute = async () => {
-
-        setRerouteLoading(true);
-
-        setRerouteMsg('');
-
-        try {
-
-            const generateRouteAdvice =
-                httpsCallable(
-                    functions,
-                    'generateRouteAdvice'
-                );
-
-            const result =
-                await generateRouteAdvice({
-
-                    currentLocation:
-                        nextStop?.name || 'Unknown',
-
-                    destination:
-                        routeData?.destination || 'Unknown',
-
-                    nextStop:
-                        nextStop?.name || 'Unknown',
-                });
-
-            setRerouteMsg(
-                result.data.advice
-            );
-
-        } catch (err) {
-
-            console.error(err);
-
-            setRerouteMsg(
-                'AI rerouting unavailable. Continue on the current route safely.'
-            );
-
-        } finally {
-
-            setRerouteLoading(false);
-        }
-    };
-
-    // ── Logout ────────────────────────────────────────────────
-
-    const handleLogout = async () => {
-        await logout();
-        navigate('/login');
-    };
-
-    const updateDriverStatus = async (status) => {
-        try {
-            setDriverStatus(status);
-
-            await updateDoc(doc(db, 'buses', bus.id), {
-                driverStatus: status,
-                updatedAt: serverTimestamp(),
-            });
-
-            toast.success(`Driver status updated: ${status}`);
-        } catch (err) {
-            toast.error('Failed to update status');
-        }
-    };
-
-    // ── Helpers ──────────────────────────────────────────────
-
-    const formatTime = (d) =>
-        d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    const formatDate = (d) =>
-        d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-
-    // ── Render ────────────────────────────────────────────────
-
-    return (
-        <div className="min-h-screen bg-gray-950 text-white p-4 lg:p-6">
-
-            {/* ── Top bar ── */}
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center">
-                        <FaBus className="text-gray-900 w-5 h-5" />
-                    </div>
-                    <div>
-                        <p className="font-bold text-lg leading-tight">{bus?.busNumber}</p>
-                        <p className="text-gray-400 text-xs">{driver?.name} · Driver Terminal</p>
-                    </div>
-                </div>
-
-                {/* Clock */}
-                <div className="text-right hidden sm:block">
-                    <p className="text-2xl font-mono font-bold text-yellow-400">
-                        {formatTime(time)}
-                    </p>
-                    <p className="text-gray-500 text-xs">{formatDate(time)}</p>
-                </div>
-
-                <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white text-sm transition-colors"
-                >
-                    <FiLogOut className="w-4 h-4" />
-                    <span className="hidden sm:inline">Logout</span>
-                </button>
-            </div>
-
-            {/* ── Active SOS banner ── */}
-            {sosActive && (
-                <div className="bg-red-900 border border-red-500 rounded-xl p-4 mb-6 flex items-center justify-between animate-pulse">
-                    <div className="flex items-center gap-3">
-                        <FiAlertTriangle className="text-red-400 w-6 h-6" />
-                        <div>
-                            <p className="text-red-300 font-bold">SOS ACTIVE — Emergency services notified</p>
-                            <p className="text-red-400 text-xs">Help is on the way. Stay calm.</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={cancelSOS}
-                        className="bg-red-700 hover:bg-red-600 text-white text-xs px-4 py-2 rounded-lg transition-colors"
-                    >
-                        Cancel SOS
-                    </button>
-                </div>
-            )}
-
-            {/* ── Main grid ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-
-                {/* ── Next Stop card ── */}
-                <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-                    <div className="flex items-center gap-2 mb-4">
-                        <FiMapPin className="text-yellow-400 w-5 h-5" />
-                        <h3 className="font-semibold text-gray-300 text-sm uppercase tracking-wide">
-                            Next Stop
-                        </h3>
-                    </div>
-
-                    {nextStop ? (
-                        <>
-                            <p className="text-2xl font-bold text-white mb-1">
-                                {nextStop.name}
-                            </p>
-                            {nextStop.arrivalTime && (
-                                <div className="flex items-center gap-2 text-gray-400 text-sm mb-4">
-                                    <FiClock className="w-4 h-4" />
-                                    <span>Scheduled: {nextStop.arrivalTime}</span>
-                                </div>
-                            )}
-
-                            {/* Waiting passengers */}
-                            <div className="bg-gray-800 rounded-xl p-4 flex items-center gap-4">
-                                <div className="w-12 h-12 bg-blue-500 bg-opacity-20 rounded-xl flex items-center justify-center">
-                                    <FiUsers className="text-blue-400 w-6 h-6" />
-                                </div>
-                                <div>
-                                    <p className="text-3xl font-bold text-blue-400">
-                                        {waitingCount}
-                                    </p>
-                                    <p className="text-gray-400 text-xs">Passengers waiting</p>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <p className="text-gray-500 text-sm">No route data available</p>
-                    )}
-                </div>
-
-                {/* ── Live sensor card ── */}
-                <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-                    <div className="flex items-center gap-2 mb-4">
-                        <FiNavigation className="text-green-400 w-5 h-5" />
-                        <h3 className="font-semibold text-gray-300 text-sm uppercase tracking-wide">
-                            Live Status
-                        </h3>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-gray-800 rounded-xl p-3 text-center">
-                            <p className="text-2xl font-bold text-white">
-                                {liveData?.speed?.toFixed?.(1) ?? '0.0'}
-                            </p>
-                            <p className="text-gray-400 text-xs">km/h</p>
-                        </div>
-                        <div className="bg-gray-800 rounded-xl p-3 text-center">
-                            <p className="text-2xl font-bold text-white">
-                                {liveData?.temperature?.toFixed?.(1) ?? '0.0'}°
-                            </p>
-                            <p className="text-gray-400 text-xs">Temp °C</p>
-                        </div>
-                        <div className="bg-gray-800 rounded-xl p-3 text-center">
-                            <p className={`text-lg font-bold ${liveData?.smoke === 'SAFE' || !liveData?.smokeDetected
-                                ? 'text-green-400' : 'text-red-400'
-                                }`}>
-                                {liveData?.smoke ?? (liveData?.smokeDetected ? 'ALERT' : 'SAFE')}
-                            </p>
-                            <p className="text-gray-400 text-xs">Smoke</p>
-                        </div>
-                        <div className="bg-gray-800 rounded-xl p-3 text-center">
-                            <p className={`text-lg font-bold ${alerts.length > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                {alerts.length > 0 ? 'DANGER' : 'SAFE'}
-                            </p>
-                            <p className="text-gray-400 text-xs">Safety</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── SOS card ── */}
-                <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800 flex flex-col items-center justify-center">
-                    <p className="text-gray-400 text-sm uppercase tracking-wide mb-6">
-                        Manual SOS Override
-                    </p>
-
-                    {/* SOS button */}
-                    <button
-                        ref={sosRef}
-                        onClick={sosActive ? cancelSOS : handleSOS}
-                        disabled={sosLoading}
-                        className={`w-40 h-40 rounded-full text-white font-black text-2xl transition-all duration-300 shadow-2xl
-              ${sosActive
-                                ? 'bg-gray-700 border-4 border-gray-500 scale-95'
-                                : 'bg-red-600 hover:bg-red-500 border-4 border-red-400 hover:scale-105 active:scale-95'
-                            }
-              ${sosLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-            `}
-                        style={{
-                            boxShadow: sosActive
-                                ? 'none'
-                                : '0 0 40px rgba(239,68,68,0.5), 0 0 80px rgba(239,68,68,0.2)',
-                        }}
-                    >
-                        {sosLoading ? '...' : sosActive ? 'CANCEL' : 'SOS'}
-                    </button>
-
-                    <p className="text-gray-500 text-xs mt-4 text-center">
-                        {sosActive
-                            ? 'Tap CANCEL when safe'
-                            : 'Hold in emergency only'}
-                    </p>
-                </div>
-            </div>
-
-            {/* ── Driver Status Panel ── */}
-            <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800 mb-4">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-gray-300 text-sm uppercase tracking-wide">
-                        Driver Status
-                    </h3>
-
-                    <span className="text-yellow-400 text-sm font-bold">
-                        {driverStatus}
-                    </span>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-
-                    <button
-                        onClick={() => updateDriverStatus('ARRIVED')}
-                        className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-                    >
-                        Arrived
-                    </button>
-
-                    <button
-                        onClick={() => updateDriverStatus('BOARDING')}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-                    >
-                        Boarding
-                    </button>
-
-                    <button
-                        onClick={() => updateDriverStatus('DELAYED')}
-                        className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-                    >
-                        Delayed
-                    </button>
-
-                </div>
-            </div>
-
-            {/* ── Bottom row ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                {/* ── AI Rerouting ── */}
-                <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">✨</span>
-                            <h3 className="font-semibold text-gray-300 text-sm uppercase tracking-wide">
-                                AI Route Advice
-                            </h3>
-                        </div>
-                        <button
-                            onClick={handleReroute}
-                            disabled={rerouteLoading}
-                            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white text-xs px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
-                        >
-                            <FiRefreshCw className={`w-3 h-3 ${rerouteLoading ? 'animate-spin' : ''}`} />
-                            {rerouteLoading ? 'Analyzing...' : 'Get Advice'}
-                        </button>
-                    </div>
-
-                    {rerouteMsg ? (
-                        <div className="bg-purple-950 border border-purple-800 rounded-xl p-4">
-                            <p className="text-purple-200 text-sm leading-relaxed">{rerouteMsg}</p>
-                        </div>
-                    ) : (
-                        <div className="bg-gray-800 rounded-xl p-4 text-center">
-                            <p className="text-gray-500 text-sm">
-                                Tap "Get Advice" for AI-powered rerouting suggestions
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Route stops */}
-                    {routeData && (
-                        <div className="mt-4">
-                            <p className="text-gray-500 text-xs mb-2">Route</p>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-green-400 text-xs font-medium">
-                                    {routeData.source}
-                                </span>
-                                {(routeData.intermediateStops || []).map((s, i) => (
-                                    <React.Fragment key={i}>
-                                        <span className="text-gray-600 text-xs">→</span>
-                                        <span className={`text-xs ${s.name === nextStop?.name
-                                            ? 'text-yellow-400 font-bold'
-                                            : 'text-gray-400'
-                                            }`}>
-                                            {s.name}
-                                        </span>
-                                    </React.Fragment>
-                                ))}
-                                <span className="text-gray-600 text-xs">→</span>
-                                <span className="text-red-400 text-xs font-medium">
-                                    {routeData.destination}
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* ── Active alerts ── */}
-                <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
-                    <div className="flex items-center gap-2 mb-4">
-                        <FiAlertTriangle className="text-orange-400 w-5 h-5" />
-                        <h3 className="font-semibold text-gray-300 text-sm uppercase tracking-wide">
-                            Active Alerts
-                        </h3>
-                        {alerts.length > 0 && (
-                            <span className="bg-red-900 text-red-400 text-xs px-2 py-0.5 rounded-full font-bold">
-                                {alerts.length}
-                            </span>
-                        )}
-                    </div>
-
-                    {alerts.length === 0 ? (
-                        <div className="flex items-center gap-3 bg-green-950 border border-green-900 rounded-xl p-4">
-                            <FiCheckCircle className="text-green-400 w-5 h-5" />
-                            <p className="text-green-400 text-sm font-medium">
-                                All systems normal
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {alerts.map(alert => (
-                                <div
-                                    key={alert.id}
-                                    className="bg-red-950 border border-red-900 rounded-xl p-3 flex items-center gap-3"
-                                >
-                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${alert.severity === 'CRITICAL'
-                                        ? 'bg-red-400' : 'bg-orange-400'
-                                        }`} />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-red-300 text-xs font-semibold">
-                                            {alert.alertType}
-                                        </p>
-                                        <p className="text-red-400 text-xs truncate">
-                                            {alert.message}
-                                        </p>
-                                    </div>
-                                    <span className="text-red-600 text-xs flex-shrink-0">
-                                        {alert.severity}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+        if (errors.length) toast.error(`SOS saved. ${errors.length} notification issue(s). Check Admin → Alerts.`);
+        else toast.success('SOS sent. Admin dashboard and configured notifications have been updated.');
+      } catch (notificationError) {
+        await updateDoc(doc(db, 'alerts', created.id), { emergencyAlertSent: false, notificationError: notificationError.message });
+        toast.error(`SOS saved, but notification dispatch failed: ${notificationError.message}`);
+      }
+    } catch (err) { toast.error(`SOS failed: ${err.message}`); }
+    finally { setSosLoading(false); }
+  };
+
+  const cancelSOS = async () => {
+    if (!bus?.id) return;
+    try {
+      const q = query(collection(db, 'alerts'), where('busId', '==', bus.id), where('alertType', '==', 'MANUAL_SOS'), where('isResolved', '==', false));
+      const snap = await getDocs(q);
+      await Promise.all(snap.docs.map((item) => updateDoc(doc(db, 'alerts', item.id), { isResolved: true, resolvedBy: driver?.name || 'driver', resolvedAt: serverTimestamp() })));
+      await updateDoc(doc(db, 'buses', bus.id), { safetyStatus: 'SAFE', updatedAt: serverTimestamp() });
+      setSosActive(false); setSosAlertId(null); toast.success('SOS cancelled and bus safety status restored to SAFE.');
+    } catch (err) { toast.error(`Cancel failed: ${err.message}`); }
+  };
+
+  const handleReroute = async () => {
+    setRerouteLoading(true); setRerouteMsg('');
+    try {
+      const generateRouteAdvice = httpsCallable(asiaFunctions, 'generateRouteAdvice');
+      const result = await generateRouteAdvice({ currentLocation: nextStop?.name || 'Unknown', destination: routeData?.destination || 'Unknown', nextStop: nextStop?.name || 'Unknown' });
+      setRerouteMsg(result.data?.advice || 'No rerouting advice returned.');
+    } catch (err) { console.error(err); setRerouteMsg('AI rerouting unavailable. Continue on the current route safely.'); }
+    finally { setRerouteLoading(false); }
+  };
+
+  const updateDriverStatus = async (status) => {
+    if (!bus?.id) return;
+    try { await updateDoc(doc(db, 'buses', bus.id), { driverStatus: status, updatedAt: serverTimestamp() }); setDriverStatus(status); toast.success(`Driver status: ${status}`); }
+    catch (err) { toast.error(`Failed to update status: ${err.message}`); }
+  };
+
+  const handleLogout = async () => { await logout(); localStorage.removeItem('driver_bus'); navigate('/login'); };
+  const formatTime = (value) => value.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  if (!bus) return (
+    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 max-w-md text-center">
+        <FiAlertTriangle className="w-10 h-10 mx-auto text-yellow-400 mb-4" /><h1 className="text-xl font-bold">No bus selected</h1>
+        <p className="text-gray-400 mt-2">Select your assigned bus before opening the driver terminal.</p>
+        <button onClick={() => navigate('/driver/bus-select')} className="mt-6 px-5 py-3 rounded-xl bg-yellow-400 text-gray-950 font-semibold">Select Bus</button>
+      </div>
+    </div>
+  );
+
+  const smokeAlert = liveData?.smokeDetected === true || liveData?.smoke === 'ALERT';
+  const flameAlert = liveData?.flameDetected === true;
+  const crashAlert = liveData?.isEmergency === true || Number(liveData?.tiltAngle || 0) > 30;
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white p-4 lg:p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div><p className="text-yellow-400 text-xs uppercase tracking-widest">SafeTrack Driver</p><h1 className="text-2xl font-bold">{bus.busNumber || 'Bus'}</h1><p className="text-gray-400 text-sm">{driver?.name || 'Driver'}</p></div>
+        <div className="flex items-center gap-4"><div className="hidden sm:block text-right"><p className="font-mono text-xl font-bold">{formatTime(time)}</p><p className="text-xs text-gray-500">{driverStatus}</p></div><button onClick={handleLogout} className="p-2 text-gray-400 hover:text-white" title="Logout"><FiLogOut /></button></div>
+      </div>
+
+      {sosActive && <div className="bg-red-950 border border-red-500 rounded-2xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div className="flex items-center gap-3"><FiAlertTriangle className="text-red-400 w-7 h-7" /><div><p className="font-bold text-red-300">SOS ACTIVE</p><p className="text-red-400 text-sm">Emergency alert is visible to the admin dashboard.</p>{sosAlertId && <p className="text-red-500 text-xs mt-1">Alert ID: {sosAlertId}</p>}</div></div><button onClick={cancelSOS} className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg font-semibold">Cancel SOS</button></div>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5"><div className="flex items-center gap-2 mb-4"><FiNavigation className="text-green-400" /><h2 className="font-semibold">Live Status</h2></div><div className="grid grid-cols-2 gap-3"><Metric label="Speed" value={`${Number(liveData?.speed || 0).toFixed(1)} km/h`} /><Metric label="Temperature" value={`${Number(liveData?.temperature || 0).toFixed(1)} °C`} /><StatusMetric label="Flame" danger={flameAlert} value={flameAlert ? 'ALERT' : 'SAFE'} /><StatusMetric label="Smoke" danger={smokeAlert} value={smokeAlert ? 'ALERT' : 'SAFE'} /><StatusMetric label="Crash/Tilt" danger={crashAlert} value={crashAlert ? 'ALERT' : 'SAFE'} /><Metric label="Seats" value={`${Number(liveData?.seatCount || 0)} / ${Number(bus.seatCapacity || 0)}`} /></div><p className="text-xs text-gray-500 mt-4">Last update: {liveData?.timestamp?.toDate ? liveData.timestamp.toDate().toLocaleTimeString() : 'Waiting for IoT data'}</p></section>
+
+        <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5"><div className="flex items-center gap-2 mb-4"><FiMapPin className="text-yellow-400" /><h2 className="font-semibold">Route</h2></div><p className="text-2xl font-bold">{nextStop?.name || 'No next stop'}</p><p className="text-gray-400 text-sm mt-1">{routeData?.source || '—'} → {routeData?.destination || '—'}</p><div className="mt-5 bg-gray-800 rounded-xl p-4 flex items-center gap-3"><FiUsers className="text-blue-400 w-6 h-6" /><div><p className="text-2xl font-bold">{waitingCount}</p><p className="text-gray-400 text-xs">Passengers waiting</p></div></div><div className="flex gap-2 mt-4">{['ON_ROUTE', 'AT_STOP', 'OFF_DUTY'].map((status) => <button key={status} onClick={() => updateDriverStatus(status)} className={`px-2 py-1 rounded-lg text-xs ${driverStatus === status ? 'bg-yellow-400 text-gray-950' : 'bg-gray-800 text-gray-400'}`}>{status.replace('_', ' ')}</button>)}</div></section>
+
+        <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5"><div className="flex items-center gap-2 mb-4"><FiAlertTriangle className="text-red-400" /><h2 className="font-semibold">Emergency Control</h2></div><button onClick={handleSOS} disabled={sosActive || sosLoading} className={`w-full py-5 rounded-2xl font-black text-xl ${sosActive || sosLoading ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-500 text-white'}`}>{sosLoading ? 'SENDING SOS…' : sosActive ? 'SOS ACTIVE' : '🚨 SEND SOS'}</button><button onClick={handleReroute} disabled={rerouteLoading} className="w-full mt-3 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 flex items-center justify-center gap-2"><FiRefreshCw className={rerouteLoading ? 'animate-spin' : ''} />{rerouteLoading ? 'Getting advice…' : 'AI Reroute Advice'}</button>{rerouteMsg && <p className="text-sm text-gray-300 bg-gray-800 rounded-xl p-3 mt-3">{rerouteMsg}</p>}</section>
+      </div>
+
+      <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mt-4"><div className="flex items-center gap-2 mb-4"><FiClock className="text-blue-400" /><h2 className="font-semibold">Active Alerts</h2></div>{alerts.length === 0 ? <div className="flex items-center gap-2 text-green-400"><FiCheckCircle /> No unresolved alerts for this bus.</div> : <div className="space-y-2">{alerts.map((alert) => <div key={alert.id} className={`rounded-xl p-3 ${alert.severity === 'CRITICAL' ? 'bg-red-950 border border-red-700' : 'bg-gray-800'}`}><div className="flex justify-between gap-3"><p className="font-semibold">{alert.alertType} · {alert.severity}</p><span className="text-xs text-gray-500">{alert.id}</span></div><p className="text-sm text-gray-400 mt-1">{alert.message}</p></div>)}</div>}</section>
+    </div>
+  );
 };
+
+const Metric = ({ label, value }) => <div className="bg-gray-800 rounded-xl p-3"><p className="text-xs text-gray-500">{label}</p><p className="font-bold text-lg">{value}</p></div>;
+const StatusMetric = ({ label, value, danger }) => <div className="bg-gray-800 rounded-xl p-3"><p className="text-xs text-gray-500">{label}</p><p className={`font-bold text-lg ${danger ? 'text-red-400' : 'text-green-400'}`}>{value}</p></div>;
 
 export default DriverTerminal;
